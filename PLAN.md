@@ -24,6 +24,8 @@ As of 2026-06-27:
   `401` unless Basic Auth is supplied.
 - API integration tests now cover core public/admin route shapes.
 - `mypy` is green after installing declared dev dependencies.
+- Plex ingestion now has pagination support plus tests proving Plex `Part file`
+  paths are ignored.
 
 ---
 
@@ -175,8 +177,8 @@ against Docker Postgres.
 
 PLEX_LIBRARY env var is the section title; look up section key by `GET {PLEX_URL}/library/sections/` first.
 
-Status: first-pass Plex API ingestion exists. Needs real Plex credentials, pagination hardening,
-fixture tests, and live sync validation.
+Status: real sync has completed. Pagination support exists and fixture tests cover
+path stripping. Still needs broader failure-mode tests and scheduled sync decisions.
 
 ---
 

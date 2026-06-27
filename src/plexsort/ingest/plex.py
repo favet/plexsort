@@ -13,6 +13,8 @@ from plexsort.config import Settings
 from plexsort.jobs import ProgressCallback
 from plexsort.models import PlexMovie
 
+PLEX_PAGE_SIZE = 250
+
 
 def _request_xml(
     settings: Settings,
@@ -96,6 +98,32 @@ def movie_from_video(video: ElementTree.Element, synced_at: datetime) -> dict[st
     }
 
 
+def library_videos(settings: Settings, section_key: str) -> list[ElementTree.Element]:
+    videos: list[ElementTree.Element] = []
+    start = 0
+    while True:
+        listing = _request_xml(
+            settings,
+            f"/library/sections/{section_key}/all",
+            {
+                "X-Plex-Container-Start": str(start),
+                "X-Plex-Container-Size": str(PLEX_PAGE_SIZE),
+            },
+        )
+        page_videos = [item for item in listing.findall("./Video") if item.attrib.get("ratingKey")]
+        videos.extend(page_videos)
+
+        total_size = int(listing.attrib.get("totalSize", "0"))
+        if not page_videos:
+            break
+        start += len(page_videos)
+        if total_size and start >= total_size:
+            break
+        if len(page_videos) < PLEX_PAGE_SIZE and not total_size:
+            break
+    return videos
+
+
 def sync_plex_movies(
     db: Session,
     settings: Settings,
@@ -104,10 +132,9 @@ def sync_plex_movies(
     if progress is not None:
         progress(0, None, "plex_library", "Finding Plex movie library")
     section_key = find_library_section_key(settings)
-    listing = _request_xml(settings, f"/library/sections/{section_key}/all")
+    videos = library_videos(settings, section_key)
     synced_at = datetime.now(UTC)
     movies: list[PlexMovie] = []
-    videos = [item for item in listing.findall("./Video") if item.attrib.get("ratingKey")]
     total = len(videos)
 
     for index, item in enumerate(videos, start=1):

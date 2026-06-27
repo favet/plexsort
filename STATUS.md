@@ -170,6 +170,22 @@ verification remained healthy:
 - Public `GET /api/stats`: `1781` movies, `196` watched, `2` lists
 - Public unauthenticated `GET /api/admin/jobs`: `401`
 
+### 2026-06-27 - Plex Pagination and Path-Stripping Tests
+
+Hardened Plex ingestion:
+
+- Plex library sync now requests movies in pages using `X-Plex-Container-Start`
+  and `X-Plex-Container-Size`.
+- Sync follows `totalSize` until all listing pages have been collected.
+- Added tests with fake Plex XML covering:
+  - library section lookup
+  - two-page library listing
+  - per-movie metadata fetches
+  - media `Part file="..."` paths returned by Plex
+  - public schema output that excludes path-bearing fields
+
+Rebuilt and restarted the Docker app container after this change.
+
 ## Decisions Made
 
 - Use Python 3.11+ with FastAPI.
@@ -205,7 +221,7 @@ These must remain true after every checkpoint:
 | Docker Compose | Done | App + dedicated Postgres. `.env` is optional for config validation. |
 | Database schema | Done, first pass | Migration applies cleanly to Docker Postgres. |
 | Public API | Done, first pass | Query filters and safe schemas exist. Needs integration tests. |
-| Plex ingestion | First pass | Needs real Plex credentials and pagination hardening. |
+| Plex ingestion | Improved | Real sync works; pagination and path stripping now have tests. |
 | Letterboxd CSV import | First pass | Needs tests with real export shapes. |
 | Letterboxd scrape | First pass | Needs live scrape test and better retry/backoff behavior. |
 | Matching engine | First pass | Title/year matching exists. TMDB deferred. |
@@ -298,6 +314,16 @@ Initialized local git repository on 2026-06-27.
   `2` lists after the rebuild.
 - Public `https://plex.favet.net/api/admin/jobs` returned `401` without Basic Auth
   after the rebuild.
+- `python -m ruff check .` passed after Plex ingestion pagination tests were added.
+- `python -m compileall src alembic tests` passed after Plex ingestion pagination tests were added.
+- `python -m pytest` passed with 13 tests after Plex ingestion pagination tests were added.
+- `python -m mypy --no-incremental --cache-dir .mypy_cache src/plexsort` passed with
+  no issues after Plex ingestion pagination tests were added.
+- `node --check frontend\assets\app.js` passed after Plex ingestion pagination tests were added.
+- `node --check frontend\assets\admin.js` passed after Plex ingestion pagination tests were added.
+- `docker compose build app` passed after Plex ingestion pagination changes.
+- `docker compose up -d app` restarted the rebuilt app container after Plex ingestion
+  pagination changes.
 
 ## Known Gaps
 
@@ -311,7 +337,7 @@ Recommended next checkpoint: harden matching quality and admin review ergonomics
 
 Exit criteria:
 
-- Add tests/fixtures for Plex ingestion pagination and path stripping.
 - Improve match confidence quality beyond title/year matching, likely by adding TMDB ID support
   once a TMDB API key is available.
 - Add admin review filters/counts so the 357-item queue is easier to work through.
+- Add a visible admin review count/filter bar and safer bulk workflow controls.
