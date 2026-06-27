@@ -9,6 +9,8 @@ checkpoint before moving on.
 python -m ruff check .
 python -m compileall src alembic
 python -m pytest
+node --check frontend\assets\app.js
+node --check frontend\assets\admin.js
 ```
 
 When dependencies are installed:
@@ -83,6 +85,7 @@ docker compose run --rm app alembic upgrade head
 
 ### Frontend
 
+- JavaScript syntax checks pass with `node --check`.
 - Smoke test public browse at desktop and mobile sizes.
 - Verify filters, sorting, and pagination do not shift layout.
 - Verify admin page handles loading, empty, success, and error states.
@@ -99,4 +102,3 @@ docker compose run --rm app alembic upgrade head
 - Inspect public API JSON for forbidden fields.
 - Verify Caddy protects `/admin` and `/api/admin`.
 - Verify public endpoints require no auth.
-

@@ -36,6 +36,7 @@ Created the initial FastAPI backend scaffold:
 - Title/year matching engine
 - Public response schemas that explicitly list safe fields
 - `.gitignore` for secrets and tool caches
+- `.dockerignore` so `.env` and cache folders are not sent to Docker build context
 
 Fixed an important auth documentation issue:
 
@@ -51,6 +52,41 @@ Added initial tests:
 The first test run caught a real normalization bug: accented leading words such as
 `À bout de souffle` were being treated like the English article `A` after accent folding.
 The matching normalizer now strips English articles before removing accent marks.
+
+### 2026-06-27 - Static Frontend First Pass
+
+Created a tracked static frontend under `frontend/` and deployed a copy to
+`C:\website\plexsort`.
+
+Created:
+
+- `frontend/index.html`
+- `frontend/admin.html`
+- `frontend/assets/style.css`
+- `frontend/assets/app.js`
+- `frontend/assets/admin.js`
+
+The public page includes:
+
+- Filter sidebar
+- Stats strip
+- Sortable movie table
+- Pagination controls
+- Letterboxd list selector and coverage summary
+- Empty state for pre-sync data
+
+The admin page includes:
+
+- Backend/sync status
+- Plex sync trigger
+- Letterboxd URL scrape form
+- Letterboxd CSV/zip upload form
+- Match review queue
+- Manual match run trigger
+
+Added a narrow localhost-only CORS allowance for `http://localhost:8014` and
+`http://127.0.0.1:8014` so the static frontend can be tested locally against
+the Docker backend. Production through Caddy remains same-origin.
 
 ## Decisions Made
 
@@ -92,7 +128,7 @@ These must remain true after every checkpoint:
 | Letterboxd CSV import | First pass | Needs tests with real export shapes. |
 | Letterboxd scrape | First pass | Needs live scrape test and better retry/backoff behavior. |
 | Matching engine | First pass | Title/year matching exists. TMDB deferred. |
-| Frontend | Not started | Target is `C:\website\plexsort`. |
+| Frontend | First pass | Tracked under `frontend/`; deployed to `C:\website\plexsort`. |
 | Infra wiring | Not started | Caddy/cloudflared edits still pending. |
 | Real data sync | Partially unblocked | `PLEX_URL` and `PLEX_LIBRARY=Movies` are recorded in `.env`; actual `PLEX_TOKEN` value still needed. |
 
@@ -123,6 +159,8 @@ Initialized local git repository on 2026-06-27.
 - `python -m compileall src alembic` passed.
 - `python -m compileall src alembic tests` passed.
 - `python -m pytest` passed with 5 tests.
+- `node --check frontend\assets\app.js` passed.
+- `node --check frontend\assets\admin.js` passed.
 - `docker compose config` passed.
 - `docker compose build` passed.
 - `docker compose up -d` started app and database containers.
@@ -134,6 +172,12 @@ Initialized local git repository on 2026-06-27.
 - Live `GET /api/stats` returned empty counts.
 - Live `GET /api/movies?per_page=5` returned an empty safe page.
 - Live `GET /api/lists` returned `[]`.
+- Browser verification against `http://localhost:8014/` showed public page rendering with
+  empty live API data, no console errors, and no page-level horizontal overflow.
+- Browser verification against `http://localhost:8014/admin.html` showed admin page rendering
+  with backend status online, no review items, no console errors, and no page-level horizontal overflow.
+- Mobile viewport check at 390px wide showed no page-level horizontal overflow; the movie table
+  scrolls inside its own frame.
 - `python -m mypy --no-incremental --cache-dir .mypy_cache src/plexsort` was attempted.
   It reached real type checking once cache permissions were fixed, but local installed packages/stubs
   were incomplete. Expected fix: install project dev dependencies with `pip install -e .[dev]`.
@@ -141,7 +185,6 @@ Initialized local git repository on 2026-06-27.
 ## Known Gaps
 
 - No API integration tests exist yet.
-- No frontend exists yet.
 - Plex sync has not been tested against a real server.
 - Letterboxd scrape has not been tested against a real public list.
 - Admin API currently runs long work inline rather than as a background job queue.
@@ -149,11 +192,12 @@ Initialized local git repository on 2026-06-27.
 
 ## Next Checkpoint
 
-Recommended next checkpoint: add API integration tests or begin the static frontend.
+Recommended next checkpoint: add API integration tests or complete infrastructure wiring.
 
 Exit criteria:
 
 - API integration tests exercise `/health`, `/api/stats`, `/api/movies`, and `/api/lists`
   against an isolated test database or controlled dependency override.
-- Or frontend files exist at `C:\website\plexsort` and can browse the empty live API cleanly.
+- Or Caddy/cloudflared are wired so `plex.favet.net` serves the static frontend and proxies
+  `/api/*` to the Docker backend.
 - Real Plex sync remains blocked until the actual `PLEX_TOKEN` value is provided.

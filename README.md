@@ -11,10 +11,11 @@ and comparing it with Letterboxd lists, watchlists, and exports.
 - `TESTING.md` - checkpoint testing policy and gates.
 - `PLEX_SETUP.md` - how to find `PLEX_URL`, `PLEX_TOKEN`, and `PLEX_LIBRARY`.
 - `.env.example` - local environment template.
+- `frontend/` - tracked static frontend source, copied to `C:\website\plexsort`.
 
 ## Current Status
 
-Backend foundation exists. Frontend, live Plex sync, and infra wiring are still pending.
+Backend foundation and first-pass frontend exist. Live Plex sync and infra wiring are still pending.
 See `STATUS.md` before making the next change.
 
 ## Local Development
@@ -34,6 +35,8 @@ API target: `http://localhost:8004`
 python -m ruff check .
 python -m compileall src alembic
 python -m pytest
+node --check frontend\assets\app.js
+node --check frontend\assets\admin.js
 ```
 
 When dev dependencies are installed:
@@ -41,4 +44,3 @@ When dev dependencies are installed:
 ```powershell
 python -m mypy --no-incremental --cache-dir .mypy_cache src/plexsort
 ```
-

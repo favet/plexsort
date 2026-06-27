@@ -13,7 +13,7 @@ As of 2026-06-27:
 - Backend foundation is scaffolded.
 - Initial schema, API modules, ingestion modules, and matching module exist.
 - Initial unit tests exist.
-- Frontend is not started.
+- Frontend first pass exists and is deployed to `C:\website\plexsort`.
 - Infra wiring is not applied.
 - Real Plex sync is blocked on `PLEX_URL`, `PLEX_TOKEN`, and `PLEX_LIBRARY`.
 
@@ -296,7 +296,7 @@ jobs before the app is treated as production-polished.
 
 ---
 
-## Phase 9 — Frontend ⬜ (not started)
+## Phase 9 — Frontend 🟡 (first pass implemented)
 
 `C:\website\plexsort\` — vanilla HTML/CSS/JS, no build step needed.
 
@@ -313,6 +313,10 @@ jobs before the app is treated as production-polished.
 - Match review queue (low-confidence entries with "confirm" / "reject" / "manual assign")
 
 Design: match the dark aesthetic of cine.favet.net (`--bg: #0d0c18`, gold accents).
+
+Status: first-pass static frontend exists under `frontend/` and has been copied to
+`C:\website\plexsort`. Public and admin pages were browser-verified against the live Docker
+backend with empty data. Needs real data validation after Plex sync.
 
 ---
 

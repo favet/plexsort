@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>PlexSort</title>
+    <link rel="stylesheet" href="assets/style.css" />
+  </head>
+  <body data-view="public">
+    <header class="topbar">
+      <a class="brand" href="/">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <span>PlexSort</span>
+      </a>
+      <nav class="nav-actions" aria-label="Primary">
+        <a href="/admin.html">Admin</a>
+      </nav>
+    </header>
+
+    <main class="app-shell">
+      <aside class="sidebar" aria-label="Movie filters">
+        <section class="tool-panel">
+          <div class="panel-title">
+            <h2>Filters</h2>
+            <button class="ghost-button" id="clearFiltersButton" type="button">Clear</button>
+          </div>
+
+          <label>
+            Search
+            <input id="searchInput" type="search" autocomplete="off" />
+          </label>
+
+          <div class="field-grid two">
+            <label>
+              From
+              <input id="yearMinInput" type="number" min="1880" max="2100" inputmode="numeric" />
+            </label>
+            <label>
+              To
+              <input id="yearMaxInput" type="number" min="1880" max="2100" inputmode="numeric" />
+            </label>
+          </div>
+
+          <label>
+            Genre
+            <input id="genreInput" type="text" autocomplete="off" />
+          </label>
+
+          <label>
+            Resolution
+            <select id="resolutionSelect">
+              <option value="">Any</option>
+              <option value="4k">4K</option>
+              <option value="1080">1080p</option>
+              <option value="720">720p</option>
+              <option value="sd">SD</option>
+            </select>
+          </label>
+
+          <label>
+            Content rating
+            <input id="contentRatingInput" type="text" autocomplete="off" />
+          </label>
+
+          <fieldset class="segmented" aria-label="Watched status">
+            <legend>Watched</legend>
+            <label><input type="radio" name="watched" value="" checked /> Any</label>
+            <label><input type="radio" name="watched" value="true" /> Yes</label>
+            <label><input type="radio" name="watched" value="false" /> No</label>
+          </fieldset>
+        </section>
+
+        <section class="tool-panel">
+          <div class="panel-title">
+            <h2>Letterboxd</h2>
+          </div>
+          <label>
+            List
+            <select id="listSelect">
+              <option value="">None loaded</option>
+            </select>
+          </label>
+          <dl class="coverage-list" id="coverageSummary">
+            <div><dt>Coverage</dt><dd>--</dd></div>
+            <div><dt>In both</dt><dd>--</dd></div>
+            <div><dt>Missing</dt><dd>--</dd></div>
+          </dl>
+        </section>
+      </aside>
+
+      <section class="workspace" aria-label="Plex movie library">
+        <section class="metric-strip" id="statsStrip" aria-label="Library stats">
+          <div><span>Total</span><strong>--</strong></div>
+          <div><span>Watched</span><strong>--</strong></div>
+          <div><span>Lists</span><strong>--</strong></div>
+        </section>
+
+        <div class="table-toolbar">
+          <div>
+            <h1>Movies</h1>
+            <p id="resultCount">Loading</p>
+          </div>
+          <div class="toolbar-actions">
+            <button class="icon-button" id="prevPageButton" type="button" title="Previous page">‹</button>
+            <span id="pageLabel">1</span>
+            <button class="icon-button" id="nextPageButton" type="button" title="Next page">›</button>
+          </div>
+        </div>
+
+        <div class="table-frame">
+          <table>
+            <thead>
+              <tr>
+                <th><button data-sort="title" type="button">Title</button></th>
+                <th><button data-sort="year" type="button">Year</button></th>
+                <th>Genres</th>
+                <th><button data-sort="rating" type="button">Rating</button></th>
+                <th>Resolution</th>
+                <th>Watched</th>
+              </tr>
+            </thead>
+            <tbody id="moviesBody"></tbody>
+          </table>
+          <div class="empty-state" id="emptyState" hidden>
+            <div class="poster-stack" aria-hidden="true">
+              <span></span><span></span><span></span>
+            </div>
+            <strong>No movies found</strong>
+            <span>Sync Plex from the admin page or adjust filters.</span>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+    <script src="assets/app.js"></script>
+  </body>
+</html>
+

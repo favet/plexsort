@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>PlexSort Admin</title>
+    <link rel="stylesheet" href="assets/style.css" />
+  </head>
+  <body data-view="admin">
+    <header class="topbar">
+      <a class="brand" href="/">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <span>PlexSort</span>
+      </a>
+      <nav class="nav-actions" aria-label="Primary">
+        <a href="/">Movies</a>
+      </nav>
+    </header>
+
+    <main class="admin-shell">
+      <section class="admin-header">
+        <div>
+          <h1>Admin</h1>
+          <p id="adminStatus">Checking backend</p>
+        </div>
+        <button class="primary-button" id="syncPlexButton" type="button">Sync Plex</button>
+      </section>
+
+      <section class="admin-grid">
+        <section class="tool-panel">
+          <div class="panel-title">
+            <h2>Plex</h2>
+          </div>
+          <dl class="status-list" id="syncStatus">
+            <div><dt>Last sync</dt><dd>--</dd></div>
+            <div><dt>Movies</dt><dd>--</dd></div>
+            <div><dt>Error</dt><dd>--</dd></div>
+          </dl>
+        </section>
+
+        <section class="tool-panel">
+          <div class="panel-title">
+            <h2>Letterboxd URL</h2>
+          </div>
+          <form id="scrapeForm">
+            <label>
+              URL
+              <input id="scrapeUrlInput" type="url" autocomplete="off" required />
+            </label>
+            <label>
+              Name
+              <input id="scrapeNameInput" type="text" autocomplete="off" />
+            </label>
+            <button class="primary-button" type="submit">Scrape</button>
+          </form>
+        </section>
+
+        <section class="tool-panel">
+          <div class="panel-title">
+            <h2>Letterboxd Export</h2>
+          </div>
+          <form id="uploadForm">
+            <label>
+              CSV or zip
+              <input id="uploadInput" type="file" accept=".csv,.zip,text/csv,application/zip" required />
+            </label>
+            <button class="primary-button" type="submit">Upload</button>
+          </form>
+        </section>
+
+        <section class="tool-panel">
+          <div class="panel-title">
+            <h2>Matching</h2>
+            <button class="ghost-button" id="runMatchButton" type="button">Run</button>
+          </div>
+          <div class="review-list" id="reviewList"></div>
+        </section>
+      </section>
+    </main>
+
+    <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+    <script src="assets/admin.js"></script>
+  </body>
+</html>
+
