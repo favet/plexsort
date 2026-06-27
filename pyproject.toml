@@ -1,0 +1,50 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "plexsort"
+version = "0.1.0"
+description = "Plex and Letterboxd analytics site"
+requires-python = ">=3.11"
+dependencies = [
+    "alembic>=1.13",
+    "beautifulsoup4>=4.12",
+    "fastapi>=0.111",
+    "psycopg2-binary>=2.9",
+    "pydantic-settings>=2.3",
+    "python-multipart>=0.0.9",
+    "requests>=2.32",
+    "sqlalchemy>=2.0",
+    "uvicorn[standard]>=0.30",
+]
+
+[project.optional-dependencies]
+dev = [
+    "black>=24.4",
+    "mypy>=1.10",
+    "pytest>=8.2",
+    "ruff>=0.5",
+    "types-requests>=2.32",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.black]
+line-length = 100
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+packages = ["plexsort"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]

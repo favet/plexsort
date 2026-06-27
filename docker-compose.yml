@@ -1,0 +1,24 @@
+services:
+  app:
+    build: .
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      DATABASE_URL: postgresql://plexsort:plexsort@db:5432/plexsort
+    ports:
+      - "8004:8004"
+    depends_on:
+      - db
+
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: plexsort
+      POSTGRES_USER: plexsort
+      POSTGRES_PASSWORD: plexsort
+    volumes:
+      - plexsort_pgdata:/var/lib/postgresql/data
+
+volumes:
+  plexsort_pgdata:
