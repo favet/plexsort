@@ -3,13 +3,28 @@ from __future__ import annotations
 from datetime import date, datetime
 from decimal import Decimal
 
-from sqlalchemy import BigInteger, Boolean, Date, DateTime, ForeignKey, Integer, Numeric, Text, func
+from sqlalchemy import (
+    JSON,
+    BigInteger,
+    Boolean,
+    Date,
+    DateTime,
+    ForeignKey,
+    Integer,
+    Numeric,
+    Text,
+    func,
+)
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
 class Base(DeclarativeBase):
     pass
+
+
+StringList = ARRAY(Text).with_variant(JSON, "sqlite")
+JsonObject = JSONB().with_variant(JSON, "sqlite")
 
 
 class PlexMovie(Base):
@@ -22,8 +37,8 @@ class PlexMovie(Base):
     year: Mapped[int | None] = mapped_column(Integer)
     tmdb_id: Mapped[str | None] = mapped_column(Text)
     imdb_id: Mapped[str | None] = mapped_column(Text)
-    genres: Mapped[list[str]] = mapped_column(ARRAY(Text), nullable=False, default=list)
-    directors: Mapped[list[str]] = mapped_column(ARRAY(Text), nullable=False, default=list)
+    genres: Mapped[list[str]] = mapped_column(StringList, nullable=False, default=list)
+    directors: Mapped[list[str]] = mapped_column(StringList, nullable=False, default=list)
     duration_ms: Mapped[int | None] = mapped_column(BigInteger)
     resolution: Mapped[str | None] = mapped_column(Text)
     video_codec: Mapped[str | None] = mapped_column(Text)
@@ -105,7 +120,7 @@ class JobRun(Base):
     message: Mapped[str | None] = mapped_column(Text)
     current: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     total: Mapped[int | None] = mapped_column(Integer)
-    result: Mapped[dict[str, object] | None] = mapped_column(JSONB)
+    result: Mapped[dict[str, object] | None] = mapped_column(JsonObject)
     error: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

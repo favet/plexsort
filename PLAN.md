@@ -22,6 +22,8 @@ As of 2026-06-27:
   or mark an entry unmatched.
 - Public route `https://plex.favet.net` is verified live; admin routes return
   `401` unless Basic Auth is supplied.
+- API integration tests now cover core public/admin route shapes.
+- `mypy` is green after installing declared dev dependencies.
 
 ---
 
@@ -277,6 +279,8 @@ class MoviePublic(BaseModel):
 ```
 
 Status: first-pass endpoints exist. Needs API integration tests against a test database.
+Current checkpoint: isolated SQLite route tests now cover health, stats, movies, lists,
+compare, admin movie search, admin manual review patching, and admin job status reads.
 
 ---
 

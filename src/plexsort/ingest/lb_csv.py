@@ -105,10 +105,10 @@ def import_letterboxd_csv(
     for position, row in enumerate(rows, start=1):
         if progress is not None and (position == 1 or position % 100 == 0 or position == total):
             progress(position, total, "csv_import", f"Importing {list_name}")
-        payload = entry_payload_from_row(row, position)
-        if payload is None:
+        entry_payload = entry_payload_from_row(row, position)
+        if entry_payload is None:
             continue
-        db.add(LetterboxdEntry(list_id=lb_list.id, **payload))
+        db.add(LetterboxdEntry(list_id=lb_list.id, **entry_payload))
         count += 1
 
     lb_list.entry_count = count

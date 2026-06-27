@@ -47,5 +47,8 @@ When dev dependencies are installed:
 python -m mypy --no-incremental --cache-dir .mypy_cache src/plexsort
 ```
 
-Current note: the runtime/test gates are green, but `mypy` is not yet green in the
-host Python environment. See `STATUS.md` for the exact blockers.
+Install dev dependencies before running the full local checkpoint suite:
+
+```powershell
+python -m pip install -e .[dev]
+```

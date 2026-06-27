@@ -145,6 +145,31 @@ Live data snapshot after deployment:
 - Match counts: 1,829 medium, 357 none
 - Current review queue: 357
 
+### 2026-06-27 - API Integration Tests and Type Gate
+
+Added route-level API integration tests with an isolated in-memory SQLite database:
+
+- Public health/stats/movie/list/compare responses
+- Public movie response field allowlist
+- Admin movie search response shape
+- Admin match review search/confirm workflow
+- Admin job list/status reads
+
+To make these tests possible without Postgres, model columns now keep Postgres
+`ARRAY`/`JSONB` behavior in production and use SQLite-compatible JSON variants in
+test databases.
+
+Installed local dev extras with `python -m pip install -e .[dev]` so host tests use
+the declared project dependency set. After that, fixed the remaining `mypy` source
+error by renaming a shadowed local variable in the Letterboxd CSV importer.
+
+Rebuilt and restarted the Docker app container after the source changes. Public
+verification remained healthy:
+
+- Local `GET /health`: `{"status":"ok"}`
+- Public `GET /api/stats`: `1781` movies, `196` watched, `2` lists
+- Public unauthenticated `GET /api/admin/jobs`: `401`
+
 ## Decisions Made
 
 - Use Python 3.11+ with FastAPI.
@@ -186,6 +211,8 @@ These must remain true after every checkpoint:
 | Matching engine | First pass | Title/year matching exists. TMDB deferred. |
 | Admin API | Progress-enabled | Admin mutations now queue background jobs with status records. |
 | Admin review | First pass | Search, confirm, and skip tools exist for the review queue. |
+| API tests | Improved | Public/admin route tests now cover core response shapes and manual review. |
+| Type checking | Passing | `mypy` is green after installing dev extras. |
 | Frontend | First pass live | Tracked under `frontend/`; deployed to `C:\website\plexsort`. |
 | Infra wiring | Live | `plex.favet.net` routes through Cloudflare Tunnel to Caddy and backend. |
 | Real data sync | Done, first pass | Plex synced 1,781 movies; two Letterboxd CSV lists imported. |
@@ -256,11 +283,21 @@ Initialized local git repository on 2026-06-27.
 - `python -m compileall src alembic tests` passed after the admin review workflow.
 - `python -m pytest` passed with 8 tests after the admin review workflow.
 - `node --check frontend\assets\admin.js` passed after the admin review workflow.
-- `python -m mypy --no-incremental --cache-dir .mypy_cache src/plexsort` was attempted.
-  It is not yet green in the current host Python environment. Current blockers:
-  missing `pydantic_settings`, missing `requests` type stubs, and a type inference issue
-  in `src/plexsort/ingest/lb_csv.py`. Expected first fix: install project dev
-  dependencies with `pip install -e .[dev]`, then address remaining source-level errors.
+- `python -m pip install -e .[dev]` installed missing host dev/runtime dependencies.
+- `python -m ruff check .` passed after API integration tests were added.
+- `python -m compileall src alembic tests` passed after API integration tests were added.
+- `python -m pytest` passed with 11 tests after API integration tests were added.
+- `python -m mypy --no-incremental --cache-dir .mypy_cache src/plexsort` passed with
+  no issues after API integration tests were added.
+- `node --check frontend\assets\app.js` passed after API integration tests were added.
+- `node --check frontend\assets\admin.js` passed after API integration tests were added.
+- `docker compose build app` passed after source changes.
+- `docker compose up -d app` restarted the rebuilt app container.
+- Live `GET /health` returned `{"status":"ok"}` after the rebuild.
+- Public `https://plex.favet.net/api/stats` returned `1781` movies, `196` watched,
+  `2` lists after the rebuild.
+- Public `https://plex.favet.net/api/admin/jobs` returned `401` without Basic Auth
+  after the rebuild.
 
 ## Known Gaps
 
@@ -270,12 +307,11 @@ Initialized local git repository on 2026-06-27.
 
 ## Next Checkpoint
 
-Recommended next checkpoint: add API integration tests and harden the admin review flow.
+Recommended next checkpoint: harden matching quality and admin review ergonomics.
 
 Exit criteria:
 
-- API integration tests exercise `/health`, `/api/stats`, `/api/movies`, and `/api/lists`
-  against an isolated test database or controlled dependency override.
-- Add integration tests for job creation/status.
-- Add tests for admin movie search and manual review patching.
-- Fix or isolate the current `mypy` blockers so the strict type gate can become required.
+- Add tests/fixtures for Plex ingestion pagination and path stripping.
+- Improve match confidence quality beyond title/year matching, likely by adding TMDB ID support
+  once a TMDB API key is available.
+- Add admin review filters/counts so the 357-item queue is easier to work through.

@@ -5,6 +5,12 @@ checkpoint before moving on.
 
 ## Always Run Before Calling Work Complete
 
+Install dev dependencies first in a fresh host Python environment:
+
+```powershell
+python -m pip install -e .[dev]
+```
+
 ```powershell
 python -m ruff check .
 python -m compileall src alembic
