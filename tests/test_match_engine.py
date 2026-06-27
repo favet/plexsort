@@ -33,6 +33,17 @@ def test_choose_match_allows_near_year_for_exact_title() -> None:
     assert match.confidence == "medium"
 
 
+def test_choose_match_allows_unique_exact_title_when_year_is_missing() -> None:
+    entry = LetterboxdEntry(id=10, list_id=1, title="12 Angry Men", year=None)
+    movies = [PlexMovie(id=1, plex_rating_key="1", title="12 Angry Men", year=1957)]
+
+    match = choose_match(entry, movies)
+
+    assert match.plex_movie_id == 1
+    assert match.confidence == "medium"
+    assert match.match_method == "exact_title_missing_year"
+
+
 def test_choose_match_returns_none_when_no_candidate_matches() -> None:
     entry = LetterboxdEntry(id=10, list_id=1, title="Moonlight", year=2016)
     movies = [PlexMovie(id=1, plex_rating_key="1", title="Sunshine", year=2007)]
@@ -41,4 +52,3 @@ def test_choose_match_returns_none_when_no_candidate_matches() -> None:
 
     assert match.plex_movie_id is None
     assert match.confidence == "none"
-

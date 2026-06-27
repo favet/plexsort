@@ -5,6 +5,8 @@ const els = {
   adminStatus: document.querySelector("#adminStatus"),
   syncPlexButton: document.querySelector("#syncPlexButton"),
   syncStatus: document.querySelector("#syncStatus"),
+  activeJob: document.querySelector("#activeJob"),
+  jobList: document.querySelector("#jobList"),
   scrapeForm: document.querySelector("#scrapeForm"),
   scrapeUrlInput: document.querySelector("#scrapeUrlInput"),
   scrapeNameInput: document.querySelector("#scrapeNameInput"),
@@ -14,6 +16,8 @@ const els = {
   reviewList: document.querySelector("#reviewList"),
   toast: document.querySelector("#toast"),
 };
+
+let activeJobTimer = null;
 
 function showToast(message) {
   els.toast.textContent = message;
@@ -86,6 +90,58 @@ function renderReview(items) {
     .join("");
 }
 
+function jobProgressText(job) {
+  if (job.total === null || job.total === undefined) {
+    return `${job.current}`;
+  }
+  return `${job.current} / ${job.total}`;
+}
+
+function renderActiveJob(job) {
+  if (!job) {
+    els.activeJob.innerHTML = "<strong>No active job</strong><span>Recent work will appear here.</span>";
+    return;
+  }
+  const percent =
+    job.total && job.total > 0 ? Math.min(100, Math.round((job.current / job.total) * 100)) : 0;
+  const progress = job.total
+    ? `<progress value="${job.current}" max="${job.total}"></progress>`
+    : "<progress></progress>";
+  els.activeJob.innerHTML = `
+    <strong>${escapeHtml(job.job_type)} · ${escapeHtml(job.status)}</strong>
+    <span>${escapeHtml(job.message || job.phase || "")}</span>
+    ${progress}
+    <span>${escapeHtml(jobProgressText(job))}${job.total ? ` · ${percent}%` : ""}</span>
+  `;
+}
+
+function renderJobs(jobs) {
+  if (!jobs.length) {
+    els.jobList.innerHTML = '<div class="empty-state"><strong>No jobs yet</strong></div>';
+    return;
+  }
+  els.jobList.innerHTML = jobs
+    .slice(0, 6)
+    .map(
+      (job) => `
+        <article class="review-item">
+          <strong>${escapeHtml(job.job_type)} · ${escapeHtml(job.status)}</strong>
+          <span>${escapeHtml(job.message || job.phase || "")}</span>
+          <span>${escapeHtml(jobProgressText(job))}</span>
+        </article>
+      `,
+    )
+    .join("");
+}
+
+async function refreshJobs() {
+  const jobs = await apiFetch("/admin/jobs");
+  renderJobs(jobs);
+  const active = jobs.find((job) => job.status === "queued" || job.status === "running");
+  renderActiveJob(active || null);
+  return active;
+}
+
 async function refresh() {
   const [health, syncStatus, reviewItems] = await Promise.all([
     fetch(HEALTH_URL).then((response) => response.json()),
@@ -95,6 +151,7 @@ async function refresh() {
   els.adminStatus.textContent = health.status === "ok" ? "Backend online" : "Backend unavailable";
   renderSyncStatus(syncStatus);
   renderReview(reviewItems);
+  await refreshJobs();
 }
 
 function setBusy(button, busy) {
@@ -103,13 +160,32 @@ function setBusy(button, busy) {
   button.textContent = busy ? "Working" : button.dataset.originalText;
 }
 
+async function trackJob(jobId) {
+  window.clearInterval(activeJobTimer);
+  async function poll() {
+    const job = await apiFetch(`/admin/jobs/${jobId}`);
+    renderActiveJob(job);
+    await refreshJobs();
+    if (job.status === "completed" || job.status === "failed") {
+      window.clearInterval(activeJobTimer);
+      activeJobTimer = null;
+      showToast(job.status === "completed" ? "Job complete" : `Job failed: ${job.error || ""}`);
+      await refresh();
+    }
+  }
+  await poll();
+  activeJobTimer = window.setInterval(() => {
+    poll().catch((error) => showToast(error.message));
+  }, 1600);
+}
+
 function bindEvents() {
   els.syncPlexButton.addEventListener("click", async () => {
     setBusy(els.syncPlexButton, true);
     try {
-      await apiFetch("/admin/sync/plex", { method: "POST" });
-      showToast("Plex sync complete");
-      await refresh();
+      const job = await apiFetch("/admin/sync/plex", { method: "POST" });
+      showToast("Plex sync queued");
+      await trackJob(job.job_id);
     } catch (error) {
       showToast(error.message);
     } finally {
@@ -122,7 +198,7 @@ function bindEvents() {
     const button = els.scrapeForm.querySelector("button");
     setBusy(button, true);
     try {
-      await apiFetch("/admin/lists/scrape", {
+      const job = await apiFetch("/admin/lists/scrape", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -131,8 +207,8 @@ function bindEvents() {
         }),
       });
       els.scrapeForm.reset();
-      showToast("List scraped");
-      await refresh();
+      showToast("Scrape queued");
+      await trackJob(job.job_id);
     } catch (error) {
       showToast(error.message);
     } finally {
@@ -151,13 +227,13 @@ function bindEvents() {
     formData.set("file", file);
     setBusy(button, true);
     try {
-      await apiFetch("/admin/lists/upload", {
+      const job = await apiFetch("/admin/lists/upload", {
         method: "POST",
         body: formData,
       });
       els.uploadForm.reset();
-      showToast("Export uploaded");
-      await refresh();
+      showToast("Import queued");
+      await trackJob(job.job_id);
     } catch (error) {
       showToast(error.message);
     } finally {
@@ -168,9 +244,9 @@ function bindEvents() {
   els.runMatchButton.addEventListener("click", async () => {
     setBusy(els.runMatchButton, true);
     try {
-      await apiFetch("/admin/match/run", { method: "POST" });
-      showToast("Matching complete");
-      await refresh();
+      const job = await apiFetch("/admin/match/run", { method: "POST" });
+      showToast("Matching queued");
+      await trackJob(job.job_id);
     } catch (error) {
       showToast(error.message);
     } finally {

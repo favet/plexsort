@@ -1,24 +1,25 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import Annotated
-from uuid import uuid4
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, UploadFile
 from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from plexsort.config import Settings, get_settings
-from plexsort.db import get_db
+from plexsort.db import SessionLocal, get_db
 from plexsort.ingest.lb_csv import import_letterboxd_csv
 from plexsort.ingest.lb_scrape import scrape_letterboxd_list
 from plexsort.ingest.plex import sync_plex_movies
+from plexsort.jobs import create_job, list_recent_jobs, make_progress, update_job
 from plexsort.match.engine import run_full_match
-from plexsort.models import LetterboxdList, Match, PlexMovie
+from plexsort.models import JobRun, LetterboxdList, Match, PlexMovie
 from plexsort.schemas import (
     JobAccepted,
+    JobStatus,
     LetterboxdEntryPublic,
-    LetterboxdListPublic,
     MatchReviewItem,
     MoviePublic,
     SyncStatus,
@@ -40,14 +41,59 @@ class MatchPatchRequest(BaseModel):
     reviewer_note: str | None = None
 
 
+JobWork = Callable[[Session], dict[str, object]]
+
+
+def run_background_job(job_id: str, work: JobWork) -> None:
+    db = SessionLocal()
+    try:
+        update_job(
+            db,
+            job_id,
+            status="running",
+            phase="starting",
+            message="Starting job",
+            current=0,
+        )
+        result = work(db)
+        update_job(
+            db,
+            job_id,
+            status="completed",
+            phase="complete",
+            message="Job complete",
+            result=result,
+        )
+    except Exception as exc:
+        db.rollback()
+        update_job(
+            db,
+            job_id,
+            status="failed",
+            phase="failed",
+            message="Job failed",
+            error=str(exc),
+        )
+    finally:
+        db.close()
+
+
 @router.post("/sync/plex", response_model=JobAccepted)
 def sync_plex(
+    background_tasks: BackgroundTasks,
     db: Annotated[Session, Depends(get_db)],
     settings: Annotated[Settings, Depends(get_settings)],
 ) -> JobAccepted:
-    sync_plex_movies(db, settings)
-    run_full_match(db)
-    return JobAccepted(job_id=str(uuid4()), status="completed")
+    job = create_job(db, "plex_sync", "Queued Plex sync")
+
+    def work(job_db: Session) -> dict[str, object]:
+        progress = make_progress(job_db, job.id)
+        movie_count = sync_plex_movies(job_db, settings, progress)
+        matched_count = run_full_match(job_db, progress)
+        return {"movie_count": movie_count, "matched_count": matched_count}
+
+    background_tasks.add_task(run_background_job, job.id, work)
+    return JobAccepted(job_id=job.id, status=job.status, message=job.message)
 
 
 @router.get("/sync/status", response_model=SyncStatus)
@@ -58,25 +104,50 @@ def sync_status(db: Annotated[Session, Depends(get_db)]) -> SyncStatus:
     )
 
 
-@router.post("/lists/scrape", response_model=LetterboxdListPublic)
+@router.post("/lists/scrape", response_model=JobAccepted)
 def scrape_list(
     request: ScrapeRequest,
+    background_tasks: BackgroundTasks,
     db: Annotated[Session, Depends(get_db)],
-) -> LetterboxdList:
-    lb_list = scrape_letterboxd_list(db, request.url, request.name)
-    run_full_match(db)
-    return lb_list
+) -> JobAccepted:
+    job = create_job(db, "letterboxd_scrape", "Queued Letterboxd scrape")
+
+    def work(job_db: Session) -> dict[str, object]:
+        progress = make_progress(job_db, job.id)
+        lb_list = scrape_letterboxd_list(job_db, request.url, request.name, progress)
+        matched_count = run_full_match(job_db, progress)
+        return {
+            "list_id": lb_list.id,
+            "entry_count": lb_list.entry_count,
+            "matched_count": matched_count,
+        }
+
+    background_tasks.add_task(run_background_job, job.id, work)
+    return JobAccepted(job_id=job.id, status=job.status, message=job.message)
 
 
-@router.post("/lists/upload", response_model=LetterboxdListPublic)
+@router.post("/lists/upload", response_model=JobAccepted)
 async def upload_list(
+    background_tasks: BackgroundTasks,
     db: Annotated[Session, Depends(get_db)],
     file: Annotated[UploadFile, File()],
-) -> LetterboxdList:
+) -> JobAccepted:
     payload = await file.read()
-    lb_list = import_letterboxd_csv(db, payload, file.filename)
-    run_full_match(db)
-    return lb_list
+    filename = file.filename
+    job = create_job(db, "letterboxd_upload", f"Queued import for {filename or 'upload'}")
+
+    def work(job_db: Session) -> dict[str, object]:
+        progress = make_progress(job_db, job.id)
+        lb_list = import_letterboxd_csv(job_db, payload, filename, progress)
+        matched_count = run_full_match(job_db, progress)
+        return {
+            "list_id": lb_list.id,
+            "entry_count": lb_list.entry_count,
+            "matched_count": matched_count,
+        }
+
+    background_tasks.add_task(run_background_job, job.id, work)
+    return JobAccepted(job_id=job.id, status=job.status, message=job.message)
 
 
 @router.delete("/lists/{list_id}", response_model=JobAccepted)
@@ -86,13 +157,35 @@ def delete_list(list_id: int, db: Annotated[Session, Depends(get_db)]) -> JobAcc
         raise HTTPException(status_code=404, detail="List not found")
     db.delete(lb_list)
     db.commit()
-    return JobAccepted(job_id=str(uuid4()), status="deleted")
+    return JobAccepted(job_id=f"delete-list-{list_id}", status="deleted")
 
 
 @router.post("/match/run", response_model=JobAccepted)
-def run_match(db: Annotated[Session, Depends(get_db)]) -> JobAccepted:
-    run_full_match(db)
-    return JobAccepted(job_id=str(uuid4()), status="completed")
+def run_match(
+    background_tasks: BackgroundTasks,
+    db: Annotated[Session, Depends(get_db)],
+) -> JobAccepted:
+    job = create_job(db, "match_run", "Queued matching pass")
+
+    def work(job_db: Session) -> dict[str, object]:
+        matched_count = run_full_match(job_db, make_progress(job_db, job.id))
+        return {"matched_count": matched_count}
+
+    background_tasks.add_task(run_background_job, job.id, work)
+    return JobAccepted(job_id=job.id, status=job.status, message=job.message)
+
+
+@router.get("/jobs", response_model=list[JobStatus])
+def jobs(db: Annotated[Session, Depends(get_db)]) -> list[JobRun]:
+    return list_recent_jobs(db)
+
+
+@router.get("/jobs/{job_id}", response_model=JobStatus)
+def job_status(job_id: str, db: Annotated[Session, Depends(get_db)]) -> JobRun:
+    job = db.get(JobRun, job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="Job not found")
+    return job
 
 
 @router.get("/matches/review", response_model=list[MatchReviewItem])

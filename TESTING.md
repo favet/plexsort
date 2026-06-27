@@ -58,7 +58,7 @@ docker compose run --rm app alembic upgrade head
 - All admin endpoints live under `/api/admin`.
 - Caddy config protects `/admin*` and `/api/admin*`.
 - Mutation routes are not reachable from the public API namespace.
-- Long-running work reports status or is moved to background jobs before public launch.
+- Long-running work creates job records and reports progress through `/api/admin/jobs`.
 
 ### Plex Ingestion
 

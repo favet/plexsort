@@ -15,7 +15,9 @@ and comparing it with Letterboxd lists, watchlists, and exports.
 
 ## Current Status
 
-Backend foundation and first-pass frontend exist. Live Plex sync and infra wiring are still pending.
+Backend foundation and first-pass frontend exist. The site is live at
+`https://plex.favet.net`, Plex has synced, and admin long-running actions now expose
+progress through job status endpoints.
 See `STATUS.md` before making the next change.
 
 ## Local Development

@@ -9,6 +9,7 @@ from datetime import UTC, datetime
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
+from plexsort.jobs import ProgressCallback
 from plexsort.models import LetterboxdEntry, Match, PlexMovie
 
 
@@ -35,6 +36,10 @@ def years_close(left: int | None, right: int | None, tolerance: int = 1) -> bool
     return abs(left - right) <= tolerance
 
 
+def year_missing(left: int | None, right: int | None) -> bool:
+    return left is None or right is None
+
+
 def choose_match(entry: LetterboxdEntry, movies: list[PlexMovie]) -> MatchCandidate:
     entry_title = normalize(entry.title)
 
@@ -45,6 +50,10 @@ def choose_match(entry: LetterboxdEntry, movies: list[PlexMovie]) -> MatchCandid
     for movie in movies:
         if normalize(movie.title) == entry_title and years_close(movie.year, entry.year):
             return MatchCandidate(movie.id, "medium", "exact_title_near_year")
+
+    exact_title_matches = [movie for movie in movies if normalize(movie.title) == entry_title]
+    if len(exact_title_matches) == 1 and year_missing(exact_title_matches[0].year, entry.year):
+        return MatchCandidate(exact_title_matches[0].id, "medium", "exact_title_missing_year")
 
     best_movie: PlexMovie | None = None
     best_ratio = 0.0
@@ -62,13 +71,18 @@ def choose_match(entry: LetterboxdEntry, movies: list[PlexMovie]) -> MatchCandid
     return MatchCandidate(None, "none", "none")
 
 
-def run_full_match(db: Session) -> int:
+def run_full_match(db: Session, progress: ProgressCallback | None = None) -> int:
     movies = list(db.scalars(select(PlexMovie)).all())
     entries = list(db.scalars(select(LetterboxdEntry)).all())
+    total = len(entries)
 
+    if progress is not None:
+        progress(0, total, "match_prepare", "Clearing previous matches")
     db.execute(delete(Match))
     now = datetime.now(UTC)
-    for entry in entries:
+    for index, entry in enumerate(entries, start=1):
+        if progress is not None and (index == 1 or index % 100 == 0 or index == total):
+            progress(index, total, "match_entries", f"Matching {index} of {total} entries")
         candidate = choose_match(entry, movies)
         db.add(
             Match(
@@ -81,4 +95,6 @@ def run_full_match(db: Session) -> int:
             )
         )
     db.commit()
+    if progress is not None:
+        progress(total, total, "match_complete", f"Matched {total} entries")
     return len(entries)

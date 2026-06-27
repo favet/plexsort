@@ -14,8 +14,10 @@ As of 2026-06-27:
 - Initial schema, API modules, ingestion modules, and matching module exist.
 - Initial unit tests exist.
 - Frontend first pass exists and is deployed to `C:\website\plexsort`.
-- Infra wiring is not applied.
-- Real Plex sync is blocked on `PLEX_URL`, `PLEX_TOKEN`, and `PLEX_LIBRARY`.
+- Infra is live at `https://plex.favet.net`.
+- Real Plex sync completed: 1,781 movies.
+- Two Letterboxd CSV lists are imported.
+- Admin long-running actions now create progress-tracked jobs.
 
 ---
 
@@ -274,7 +276,7 @@ Status: first-pass endpoints exist. Needs API integration tests against a test d
 
 ---
 
-## Phase 8 — Admin API 🟡 (first pass implemented)
+## Phase 8 — Admin API 🟡 (progress-enabled first pass implemented)
 
 `src/plexsort/api/admin.py`
 
@@ -291,8 +293,8 @@ NOTE: Admin route protection is done at the Caddy level (basicauth on /admin*). 
 `GET  /api/admin/matches/review` — list low-confidence + unmatched entries
 `PATCH /api/admin/matches/{id}` — manually set match / override / mark reviewed
 
-Status: endpoints exist. Long-running work currently runs inline and should become background
-jobs before the app is treated as production-polished.
+Status: endpoints exist. Long-running sync/import/match actions now queue background jobs and
+report progress through `/api/admin/jobs`.
 
 ---
 
@@ -320,13 +322,16 @@ backend with empty data. Needs real data validation after Plex sync.
 
 ---
 
-## Phase 10 — Wire up infra ⬜ (not started)
+## Phase 10 — Wire up infra ✅ (live)
 
 1. `caddy reload` after updating Caddyfile with the plex.favet.net block (see CLAUDE.md)
 2. `cloudflared tunnel route dns favet-tunnel plex.favet.net` (one-time)
 3. `Restart-Service cloudflared` in elevated terminal (user runs)
 4. `docker compose up -d` from `C:\Users\Justin\Documents\PLEXSORT\`
 5. `docker compose run --rm app alembic upgrade head`
+
+Status: Caddy and Cloudflare Tunnel are wired. Public site is live at `https://plex.favet.net`.
+Public API is open; `/admin*` and `/api/admin*` require Basic Auth.
 
 ---
 

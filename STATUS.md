@@ -88,6 +88,35 @@ Added a narrow localhost-only CORS allowance for `http://localhost:8014` and
 `http://127.0.0.1:8014` so the static frontend can be tested locally against
 the Docker backend. Production through Caddy remains same-origin.
 
+### 2026-06-27 - Public Launch and Job Progress
+
+Published PlexSort at `https://plex.favet.net`.
+
+Public verification:
+
+- `GET /` returns the static frontend through Cloudflare/Caddy.
+- `GET /api/stats` returns public library counts.
+- `GET /admin` returns `401 Unauthorized`.
+- `GET /api/admin/sync/status` returns `401 Unauthorized` without Basic Auth.
+
+Added durable job progress tracking:
+
+- New `job_runs` table via Alembic revision `002_job_runs`
+- `GET /api/admin/jobs`
+- `GET /api/admin/jobs/{job_id}`
+- `POST /api/admin/sync/plex` now queues a background job
+- `POST /api/admin/lists/scrape` now queues a background job
+- `POST /api/admin/lists/upload` now queues a background job
+- `POST /api/admin/match/run` now queues a background job
+- Admin UI polls job progress and shows phase/current/total
+
+Verified with a real match job:
+
+- Queued job `915a8bff-40be-4d23-babf-aa2bb7a40fe8`
+- Progress reported from `1 / 2186` through `2186 / 2186`
+- Final status: `completed`
+- Result: `matched_count = 2186`
+
 ## Decisions Made
 
 - Use Python 3.11+ with FastAPI.
@@ -123,14 +152,14 @@ These must remain true after every checkpoint:
 | Docker Compose | Done | App + dedicated Postgres. `.env` is optional for config validation. |
 | Database schema | Done, first pass | Migration applies cleanly to Docker Postgres. |
 | Public API | Done, first pass | Query filters and safe schemas exist. Needs integration tests. |
-| Admin API | Done, first pass | Currently synchronous job execution. Async/background jobs can come later. |
 | Plex ingestion | First pass | Needs real Plex credentials and pagination hardening. |
 | Letterboxd CSV import | First pass | Needs tests with real export shapes. |
 | Letterboxd scrape | First pass | Needs live scrape test and better retry/backoff behavior. |
 | Matching engine | First pass | Title/year matching exists. TMDB deferred. |
+| Admin API | Progress-enabled | Admin mutations now queue background jobs with status records. |
 | Frontend | First pass | Tracked under `frontend/`; deployed to `C:\website\plexsort`. |
-| Infra wiring | Not started | Caddy/cloudflared edits still pending. |
-| Real data sync | Partially unblocked | `PLEX_URL` and `PLEX_LIBRARY=Movies` are recorded in `.env`; actual `PLEX_TOKEN` value still needed. |
+| Infra wiring | Live | `plex.favet.net` routes through Cloudflare Tunnel to Caddy and backend. |
+| Real data sync | Done, first pass | Plex synced 1,781 movies; two Letterboxd CSV lists imported. |
 
 ## Plex Environment Status
 
@@ -140,8 +169,7 @@ Received on 2026-06-27:
 - `PLEX_LIBRARY` is `Movies`.
 - `PLEX_LIBRARY` means the Plex library section title inside Plex, not a filesystem folder.
 - `.env` has been created with the URL and library.
-- `PLEX_TOKEN` still contains a placeholder because the provided text appeared to be an instruction,
-  not the actual token value.
+- `PLEX_TOKEN` is present in ignored local `.env`; never commit or print it.
 
 ## Git Status
 
@@ -166,6 +194,7 @@ Initialized local git repository on 2026-06-27.
 - `docker compose up -d` started app and database containers.
 - `docker compose run --rm app alembic upgrade head` applied `001_initial_schema`.
 - `docker compose run --rm app alembic current` reported `001_initial_schema (head)`.
+- `docker compose run --rm app alembic current` later reported `002_job_runs (head)`.
 - Docker Postgres contains expected tables: `alembic_version`, `plex_movies`, `lb_lists`,
   `lb_entries`, and `matches`.
 - Live `GET /health` returned `{"status":"ok"}`.
@@ -178,6 +207,9 @@ Initialized local git repository on 2026-06-27.
   with backend status online, no review items, no console errors, and no page-level horizontal overflow.
 - Mobile viewport check at 390px wide showed no page-level horizontal overflow; the movie table
   scrolls inside its own frame.
+- Public `https://plex.favet.net/api/stats` returned `1781` movies, `196` watched, `2` lists.
+- Public admin job endpoint returned `401` without Basic Auth.
+- Public admin job endpoint returned the completed match job with Basic Auth.
 - `python -m mypy --no-incremental --cache-dir .mypy_cache src/plexsort` was attempted.
   It reached real type checking once cache permissions were fixed, but local installed packages/stubs
   were incomplete. Expected fix: install project dev dependencies with `pip install -e .[dev]`.
@@ -185,19 +217,16 @@ Initialized local git repository on 2026-06-27.
 ## Known Gaps
 
 - No API integration tests exist yet.
-- Plex sync has not been tested against a real server.
 - Letterboxd scrape has not been tested against a real public list.
-- Admin API currently runs long work inline rather than as a background job queue.
 - Plex library sync does not yet handle paginated library results robustly.
 
 ## Next Checkpoint
 
-Recommended next checkpoint: add API integration tests or complete infrastructure wiring.
+Recommended next checkpoint: improve matching quality and add API integration tests.
 
 Exit criteria:
 
 - API integration tests exercise `/health`, `/api/stats`, `/api/movies`, and `/api/lists`
   against an isolated test database or controlled dependency override.
-- Or Caddy/cloudflared are wired so `plex.favet.net` serves the static frontend and proxies
-  `/api/*` to the Docker backend.
-- Real Plex sync remains blocked until the actual `PLEX_TOKEN` value is provided.
+- Add integration tests for job creation/status.
+- Add admin review tooling for the 357 currently unmatched entries.

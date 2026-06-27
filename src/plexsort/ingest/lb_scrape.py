@@ -9,10 +9,16 @@ import requests
 from bs4 import BeautifulSoup
 from sqlalchemy.orm import Session
 
+from plexsort.jobs import ProgressCallback
 from plexsort.models import LetterboxdEntry, LetterboxdList
 
 
-def scrape_letterboxd_list(db: Session, url: str, name: str | None = None) -> LetterboxdList:
+def scrape_letterboxd_list(
+    db: Session,
+    url: str,
+    name: str | None = None,
+    progress: ProgressCallback | None = None,
+) -> LetterboxdList:
     lb_list = LetterboxdList(
         name=name or url.rstrip("/").split("/")[-1] or "Letterboxd list",
         source_type="url_scrape",
@@ -28,6 +34,8 @@ def scrape_letterboxd_list(db: Session, url: str, name: str | None = None) -> Le
     page = 1
     try:
         while True:
+            if progress is not None:
+                progress(page - 1, None, "scrape_page", f"Fetching Letterboxd page {page}")
             page_url = url if page == 1 else f"{url.rstrip('/')}/page/{page}/"
             response = requests.get(page_url, timeout=30)
             if response.status_code in {429, 503}:
@@ -81,4 +89,6 @@ def scrape_letterboxd_list(db: Session, url: str, name: str | None = None) -> Le
     lb_list.entry_count = count
     db.commit()
     db.refresh(lb_list)
+    if progress is not None:
+        progress(count, count, "scrape_complete", f"Scraped {count} Letterboxd entries")
     return lb_list

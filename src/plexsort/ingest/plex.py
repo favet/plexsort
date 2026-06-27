@@ -10,6 +10,7 @@ from sqlalchemy import delete
 from sqlalchemy.orm import Session
 
 from plexsort.config import Settings
+from plexsort.jobs import ProgressCallback
 from plexsort.models import PlexMovie
 
 
@@ -95,23 +96,36 @@ def movie_from_video(video: ElementTree.Element, synced_at: datetime) -> dict[st
     }
 
 
-def sync_plex_movies(db: Session, settings: Settings) -> int:
+def sync_plex_movies(
+    db: Session,
+    settings: Settings,
+    progress: ProgressCallback | None = None,
+) -> int:
+    if progress is not None:
+        progress(0, None, "plex_library", "Finding Plex movie library")
     section_key = find_library_section_key(settings)
     listing = _request_xml(settings, f"/library/sections/{section_key}/all")
     synced_at = datetime.now(UTC)
     movies: list[PlexMovie] = []
+    videos = [item for item in listing.findall("./Video") if item.attrib.get("ratingKey")]
+    total = len(videos)
 
-    for item in listing.findall("./Video"):
-        rating_key = item.attrib.get("ratingKey")
-        if not rating_key:
-            continue
+    for index, item in enumerate(videos, start=1):
+        rating_key = item.attrib["ratingKey"]
+        if progress is not None:
+            title = item.attrib.get("title", rating_key)
+            progress(index - 1, total, "plex_metadata", f"Fetching metadata for {title}")
         detail = _request_xml(settings, f"/library/metadata/{rating_key}")
         video = detail.find("./Video")
         if video is None:
             continue
         movies.append(PlexMovie(**movie_from_video(video, synced_at)))
 
+    if progress is not None:
+        progress(total, total, "plex_database", "Replacing Plex movie table")
     db.execute(delete(PlexMovie))
     db.add_all(movies)
     db.commit()
+    if progress is not None:
+        progress(total, total, "plex_complete", f"Synced {len(movies)} Plex movies")
     return len(movies)

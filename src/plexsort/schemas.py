@@ -78,6 +78,25 @@ class StatsPublic(BaseModel):
 class JobAccepted(BaseModel):
     job_id: str
     status: str
+    message: str | None = None
+
+
+class JobStatus(BaseModel):
+    id: str
+    job_type: str
+    status: str
+    phase: str | None
+    message: str | None
+    current: int
+    total: int | None
+    result: dict[str, object] | None
+    error: str | None
+    created_at: datetime
+    started_at: datetime | None
+    updated_at: datetime | None
+    finished_at: datetime | None
+
+    model_config = ConfigDict(from_attributes=True)
 
 
 class SyncStatus(BaseModel):
@@ -93,4 +112,3 @@ class MatchReviewItem(BaseModel):
     reviewed: bool
     lb_entry: LetterboxdEntryPublic
     plex_movie: MoviePublic | None
-
