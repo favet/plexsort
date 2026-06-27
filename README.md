@@ -15,9 +15,9 @@ and comparing it with Letterboxd lists, watchlists, and exports.
 
 ## Current Status
 
-Backend foundation and first-pass frontend exist. The site is live at
-`https://plex.favet.net`, Plex has synced, and admin long-running actions now expose
-progress through job status endpoints.
+The site is live at `https://plex.favet.net` with real Plex data, two imported
+Letterboxd lists, progress-tracked admin jobs, and first-pass manual match review
+tools. Admin pages and admin APIs are protected by Caddy Basic Auth.
 See `STATUS.md` before making the next change.
 
 ## Local Development
@@ -46,3 +46,6 @@ When dev dependencies are installed:
 ```powershell
 python -m mypy --no-incremental --cache-dir .mypy_cache src/plexsort
 ```
+
+Current note: the runtime/test gates are green, but `mypy` is not yet green in the
+host Python environment. See `STATUS.md` for the exact blockers.

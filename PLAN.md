@@ -18,6 +18,10 @@ As of 2026-06-27:
 - Real Plex sync completed: 1,781 movies.
 - Two Letterboxd CSV lists are imported.
 - Admin long-running actions now create progress-tracked jobs.
+- Admin review has first-pass manual tools: search Plex movies, confirm a match,
+  or mark an entry unmatched.
+- Public route `https://plex.favet.net` is verified live; admin routes return
+  `401` unless Basic Auth is supplied.
 
 ---
 
@@ -290,11 +294,13 @@ NOTE: Admin route protection is done at the Caddy level (basicauth on /admin*). 
 `POST /api/admin/lists/upload` — multipart: upload Letterboxd export zip/csv
 `DELETE /api/admin/lists/{id}` — remove a saved list
 `POST /api/admin/match/run` — re-run full match pass
+`GET  /api/admin/movies/search` - search Plex candidates for manual review
 `GET  /api/admin/matches/review` — list low-confidence + unmatched entries
 `PATCH /api/admin/matches/{id}` — manually set match / override / mark reviewed
 
 Status: endpoints exist. Long-running sync/import/match actions now queue background jobs and
-report progress through `/api/admin/jobs`.
+report progress through `/api/admin/jobs`. Manual review endpoints now support the
+first real unmatched queue workflow.
 
 ---
 
@@ -312,13 +318,14 @@ report progress through `/api/admin/jobs`.
 `admin.html` — admin panel (served at `/admin`, with `/api/admin*` also gated by Caddy basicauth)
 - Trigger Plex sync button + last-sync timestamp
 - Paste Letterboxd URL or upload CSV
-- Match review queue (low-confidence entries with "confirm" / "reject" / "manual assign")
+- Match review queue with Plex movie search, confirm, and skip/manual-unmatched actions
+- Job progress display for sync, import, and matching jobs
 
 Design: match the dark aesthetic of cine.favet.net (`--bg: #0d0c18`, gold accents).
 
 Status: first-pass static frontend exists under `frontend/` and has been copied to
-`C:\website\plexsort`. Public and admin pages were browser-verified against the live Docker
-backend with empty data. Needs real data validation after Plex sync.
+`C:\website\plexsort`. Public and admin pages have been deployed behind Caddy.
+Current real data snapshot: 1,781 Plex movies, 2 Letterboxd lists, 357 review items.
 
 ---
 

@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Annotated
 
-from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, Query, UploadFile
 from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -21,6 +21,7 @@ from plexsort.schemas import (
     JobStatus,
     LetterboxdEntryPublic,
     MatchReviewItem,
+    MovieAdminOption,
     MoviePublic,
     SyncStatus,
 )
@@ -188,13 +189,33 @@ def job_status(job_id: str, db: Annotated[Session, Depends(get_db)]) -> JobRun:
     return job
 
 
+@router.get("/movies/search", response_model=list[MovieAdminOption])
+def search_movies(
+    db: Annotated[Session, Depends(get_db)],
+    q: Annotated[str, Query(min_length=1)],
+    limit: Annotated[int, Query(ge=1, le=25)] = 8,
+) -> list[PlexMovie]:
+    return list(
+        db.scalars(
+            select(PlexMovie)
+            .where(PlexMovie.title.ilike(f"%{q}%"))
+            .order_by(PlexMovie.title_sort.asc(), PlexMovie.year.asc())
+            .limit(limit)
+        ).all()
+    )
+
+
 @router.get("/matches/review", response_model=list[MatchReviewItem])
-def review_matches(db: Annotated[Session, Depends(get_db)]) -> list[MatchReviewItem]:
+def review_matches(
+    db: Annotated[Session, Depends(get_db)],
+    limit: Annotated[int, Query(ge=1, le=200)] = 50,
+) -> list[MatchReviewItem]:
     matches = list(
         db.scalars(
             select(Match)
             .where(Match.reviewed.is_(False), Match.confidence.in_(["low", "none"]))
             .order_by(Match.confidence.asc(), Match.matched_at.desc())
+            .limit(limit)
         ).all()
     )
     return [

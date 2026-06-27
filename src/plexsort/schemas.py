@@ -30,6 +30,10 @@ class MoviePublic(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class MovieAdminOption(MoviePublic):
+    id: int
+
+
 class MoviePage(BaseModel):
     total: int
     page: int

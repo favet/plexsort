@@ -28,6 +28,19 @@ docker compose up -d
 docker compose run --rm app alembic upgrade head
 ```
 
+For live deployment checkpoints:
+
+```powershell
+curl.exe -s http://localhost:8004/health
+curl.exe -s -H "Host: plex.favet.net" http://localhost/api/stats
+curl.exe -s -o NUL -w "%{http_code}" -H "Host: plex.favet.net" http://localhost/api/admin/jobs
+curl.exe -s -L https://plex.favet.net/api/stats
+curl.exe -s -L -o NUL -w "%{http_code}" https://plex.favet.net/api/admin/jobs
+```
+
+Expected result: public endpoints return `200`; admin endpoints return `401`
+without Basic Auth and return data only with the admin credentials.
+
 ## Checkpoint Gates
 
 ### Backend Scaffold
@@ -59,6 +72,8 @@ docker compose run --rm app alembic upgrade head
 - Caddy config protects `/admin*` and `/api/admin*`.
 - Mutation routes are not reachable from the public API namespace.
 - Long-running work creates job records and reports progress through `/api/admin/jobs`.
+- Manual review routes are protected and tested with both unauthenticated and
+  authenticated requests.
 
 ### Plex Ingestion
 

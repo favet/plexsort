@@ -10,7 +10,8 @@ moving on to the next phase.
 - Public hostname target: `plex.favet.net`
 - Backend target port: `8004`
 - Static frontend target: `C:\website\plexsort`
-- Current stage: backend foundation complete; frontend and real data sync not started.
+- Current stage: public site live with real Plex data, imported Letterboxd lists,
+  progress-tracked admin jobs, and first-pass manual match review tools.
 
 ## What Happened
 
@@ -117,6 +118,33 @@ Verified with a real match job:
 - Final status: `completed`
 - Result: `matched_count = 2186`
 
+### 2026-06-27 - Admin Review Workflow
+
+Added first-pass tools for working through unmatched/low-confidence matches:
+
+- `GET /api/admin/movies/search?q=...&limit=...` searches Plex movies for manual
+  review candidates. This endpoint is admin-only through Caddy and includes the
+  internal PlexSort movie row ID needed for safe manual assignment.
+- `GET /api/admin/matches/review` now accepts `limit` and defaults to 50 items.
+- Admin UI review cards now include:
+  - editable Plex search query
+  - candidate search results
+  - one-click manual match confirmation
+  - skip/mark-unmatched action
+- Manual confirmations call `PATCH /api/admin/matches/{id}` with
+  `match_method = manual`; skips use `match_method = manual_unmatched`.
+
+Deployed the updated backend container and copied updated static frontend assets to
+`C:\website\plexsort`.
+
+Live data snapshot after deployment:
+
+- Plex movies: 1,781
+- Watched movies: 196
+- Letterboxd lists: 2
+- Match counts: 1,829 medium, 357 none
+- Current review queue: 357
+
 ## Decisions Made
 
 - Use Python 3.11+ with FastAPI.
@@ -157,7 +185,8 @@ These must remain true after every checkpoint:
 | Letterboxd scrape | First pass | Needs live scrape test and better retry/backoff behavior. |
 | Matching engine | First pass | Title/year matching exists. TMDB deferred. |
 | Admin API | Progress-enabled | Admin mutations now queue background jobs with status records. |
-| Frontend | First pass | Tracked under `frontend/`; deployed to `C:\website\plexsort`. |
+| Admin review | First pass | Search, confirm, and skip tools exist for the review queue. |
+| Frontend | First pass live | Tracked under `frontend/`; deployed to `C:\website\plexsort`. |
 | Infra wiring | Live | `plex.favet.net` routes through Cloudflare Tunnel to Caddy and backend. |
 | Real data sync | Done, first pass | Plex synced 1,781 movies; two Letterboxd CSV lists imported. |
 
@@ -210,9 +239,28 @@ Initialized local git repository on 2026-06-27.
 - Public `https://plex.favet.net/api/stats` returned `1781` movies, `196` watched, `2` lists.
 - Public admin job endpoint returned `401` without Basic Auth.
 - Public admin job endpoint returned the completed match job with Basic Auth.
+- Local `GET /health` returned `{"status":"ok"}` after rebuilding the app image.
+- Local Caddy `GET /api/admin/movies/search?q=12%20Monkeys&limit=3` returned the
+  expected Plex candidate with Basic Auth.
+- Local Caddy `GET /api/admin/movies/search?q=x` returned `401` without Basic Auth.
+- Local Caddy `GET /api/admin/matches/review?limit=2` returned two review items
+  with Basic Auth.
+- Public `https://plex.favet.net/` returned `200`.
+- Public `https://plex.favet.net/api/stats` returned `1781` movies, `196` watched,
+  `2` lists.
+- Public `https://plex.favet.net/api/admin/movies/search?q=x` returned `401`
+  without Basic Auth.
+- Public `https://plex.favet.net/api/admin/movies/search?q=12%20Monkeys&limit=1`
+  returned the expected Plex candidate with Basic Auth.
+- `python -m ruff check .` passed after the admin review workflow.
+- `python -m compileall src alembic tests` passed after the admin review workflow.
+- `python -m pytest` passed with 8 tests after the admin review workflow.
+- `node --check frontend\assets\admin.js` passed after the admin review workflow.
 - `python -m mypy --no-incremental --cache-dir .mypy_cache src/plexsort` was attempted.
-  It reached real type checking once cache permissions were fixed, but local installed packages/stubs
-  were incomplete. Expected fix: install project dev dependencies with `pip install -e .[dev]`.
+  It is not yet green in the current host Python environment. Current blockers:
+  missing `pydantic_settings`, missing `requests` type stubs, and a type inference issue
+  in `src/plexsort/ingest/lb_csv.py`. Expected first fix: install project dev
+  dependencies with `pip install -e .[dev]`, then address remaining source-level errors.
 
 ## Known Gaps
 
@@ -222,11 +270,12 @@ Initialized local git repository on 2026-06-27.
 
 ## Next Checkpoint
 
-Recommended next checkpoint: improve matching quality and add API integration tests.
+Recommended next checkpoint: add API integration tests and harden the admin review flow.
 
 Exit criteria:
 
 - API integration tests exercise `/health`, `/api/stats`, `/api/movies`, and `/api/lists`
   against an isolated test database or controlled dependency override.
 - Add integration tests for job creation/status.
-- Add admin review tooling for the 357 currently unmatched entries.
+- Add tests for admin movie search and manual review patching.
+- Fix or isolate the current `mypy` blockers so the strict type gate can become required.

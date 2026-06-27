@@ -67,7 +67,7 @@ function renderSyncStatus(status) {
     ["Error", status.last_error || "--"],
   ];
   els.syncStatus.innerHTML = rows
-    .map(([label, value]) => `<div><dt>${label}</dt><dd>${value}</dd></div>`)
+    .map(([label, value]) => `<div><dt>${label}</dt><dd>${escapeHtml(value)}</dd></div>`)
     .join("");
 }
 
@@ -80,10 +80,21 @@ function renderReview(items) {
   els.reviewList.innerHTML = items
     .map(
       (item) => `
-        <article class="review-item">
+        <article class="review-item" data-match-id="${item.match_id}">
           <strong>${escapeHtml(item.lb_entry.title)} ${escapeHtml(item.lb_entry.year || "")}</strong>
-          <span>${escapeHtml(item.confidence)} · ${escapeHtml(item.match_method)}</span>
+          <span>${escapeHtml(item.confidence)} - ${escapeHtml(item.match_method)}</span>
           <span>${item.plex_movie ? escapeHtml(item.plex_movie.title) : "Unmatched"}</span>
+          <div class="review-actions">
+            <input
+              type="search"
+              value="${escapeHtml(item.lb_entry.title)}"
+              aria-label="Search Plex movies"
+              data-role="review-query"
+            />
+            <button class="ghost-button" type="button" data-action="search-match">Search</button>
+            <button class="ghost-button" type="button" data-action="mark-unmatched">Skip</button>
+          </div>
+          <div class="candidate-list" data-role="candidate-list"></div>
         </article>
       `,
     )
@@ -108,10 +119,10 @@ function renderActiveJob(job) {
     ? `<progress value="${job.current}" max="${job.total}"></progress>`
     : "<progress></progress>";
   els.activeJob.innerHTML = `
-    <strong>${escapeHtml(job.job_type)} · ${escapeHtml(job.status)}</strong>
+    <strong>${escapeHtml(job.job_type)} - ${escapeHtml(job.status)}</strong>
     <span>${escapeHtml(job.message || job.phase || "")}</span>
     ${progress}
-    <span>${escapeHtml(jobProgressText(job))}${job.total ? ` · ${percent}%` : ""}</span>
+    <span>${escapeHtml(jobProgressText(job))}${job.total ? ` - ${percent}%` : ""}</span>
   `;
 }
 
@@ -125,7 +136,7 @@ function renderJobs(jobs) {
     .map(
       (job) => `
         <article class="review-item">
-          <strong>${escapeHtml(job.job_type)} · ${escapeHtml(job.status)}</strong>
+          <strong>${escapeHtml(job.job_type)} - ${escapeHtml(job.status)}</strong>
           <span>${escapeHtml(job.message || job.phase || "")}</span>
           <span>${escapeHtml(jobProgressText(job))}</span>
         </article>
@@ -158,6 +169,46 @@ function setBusy(button, busy) {
   button.disabled = busy;
   button.dataset.originalText ||= button.textContent;
   button.textContent = busy ? "Working" : button.dataset.originalText;
+}
+
+async function patchMatch(matchId, payload) {
+  await apiFetch(`/admin/matches/${matchId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  showToast("Review saved");
+  await refresh();
+}
+
+function renderCandidates(container, matchId, movies) {
+  if (!movies.length) {
+    container.innerHTML = '<span class="muted">No Plex candidates found.</span>';
+    return;
+  }
+
+  els.reviewList.querySelectorAll(".candidate-list").forEach((list) => {
+    if (list !== container) {
+      list.innerHTML = "";
+    }
+  });
+
+  container.innerHTML = movies
+    .map(
+      (movie) => `
+        <button
+          class="candidate-button"
+          type="button"
+          data-action="confirm-match"
+          data-movie-id="${movie.id}"
+          data-match-id="${matchId}"
+        >
+          <span>${escapeHtml(movie.title)}</span>
+          <small>${escapeHtml(movie.year || "--")} - ${escapeHtml(movie.resolution || "--")}</small>
+        </button>
+      `,
+    )
+    .join("");
 }
 
 async function trackJob(jobId) {
@@ -251,6 +302,58 @@ function bindEvents() {
       showToast(error.message);
     } finally {
       setBusy(els.runMatchButton, false);
+    }
+  });
+
+  els.reviewList.addEventListener("click", async (event) => {
+    const button = event.target.closest("button");
+    if (!button) {
+      return;
+    }
+
+    const item = button.closest("[data-match-id]");
+    const matchId = button.dataset.matchId || item?.dataset.matchId;
+    if (!matchId) {
+      return;
+    }
+
+    if (button.dataset.action === "search-match") {
+      const query = item.querySelector("[data-role='review-query']").value.trim();
+      const container = item.querySelector("[data-role='candidate-list']");
+      if (!query) {
+        return;
+      }
+      button.disabled = true;
+      try {
+        const movies = await apiFetch(
+          `/admin/movies/search?q=${encodeURIComponent(query)}&limit=8`,
+        );
+        renderCandidates(container, matchId, movies);
+      } catch (error) {
+        showToast(error.message);
+      } finally {
+        button.disabled = false;
+      }
+      return;
+    }
+
+    if (button.dataset.action === "confirm-match") {
+      await patchMatch(matchId, {
+        plex_movie_id: Number(button.dataset.movieId),
+        confidence: "high",
+        match_method: "manual",
+        reviewed: true,
+      });
+      return;
+    }
+
+    if (button.dataset.action === "mark-unmatched") {
+      await patchMatch(matchId, {
+        plex_movie_id: null,
+        confidence: "none",
+        match_method: "manual_unmatched",
+        reviewed: true,
+      });
     }
   });
 }

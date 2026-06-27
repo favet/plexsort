@@ -518,6 +518,37 @@ progress {
   font-size: 0.84rem;
 }
 
+.review-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.candidate-list {
+  display: grid;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.candidate-button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 34px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #0e0d19;
+  color: var(--text);
+  padding: 7px 9px;
+  text-align: left;
+}
+
+.candidate-button small {
+  color: var(--muted);
+}
+
 .toast {
   position: fixed;
   right: 18px;
