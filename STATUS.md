@@ -112,9 +112,10 @@ Received on 2026-06-27:
 Initialized local git repository on 2026-06-27.
 
 - Branch: `main`
-- Intended public remote repository name: `plexsort`
+- Public remote repository: `https://github.com/favet/plexsort`
 - `.env` is ignored and must not be committed.
-- Initial commit should include docs, backend scaffold, migration, and tests.
+- Initial commit `7c652b7` includes docs, backend scaffold, migration, and tests.
+- `main` is pushed to `origin/main`.
 
 ## Validation So Far
 
