@@ -85,7 +85,7 @@ These must remain true after every checkpoint:
 |---|---|---|
 | Backend scaffold | Done | App imports and route modules exist. |
 | Docker Compose | Done | App + dedicated Postgres. `.env` is optional for config validation. |
-| Database schema | Done, first pass | Migration exists. Needs live migration test against Postgres. |
+| Database schema | Done, first pass | Migration applies cleanly to Docker Postgres. |
 | Public API | Done, first pass | Query filters and safe schemas exist. Needs integration tests. |
 | Admin API | Done, first pass | Currently synchronous job execution. Async/background jobs can come later. |
 | Plex ingestion | First pass | Needs real Plex credentials and pagination hardening. |
@@ -124,14 +124,22 @@ Initialized local git repository on 2026-06-27.
 - `python -m compileall src alembic tests` passed.
 - `python -m pytest` passed with 5 tests.
 - `docker compose config` passed.
+- `docker compose build` passed.
+- `docker compose up -d` started app and database containers.
+- `docker compose run --rm app alembic upgrade head` applied `001_initial_schema`.
+- `docker compose run --rm app alembic current` reported `001_initial_schema (head)`.
+- Docker Postgres contains expected tables: `alembic_version`, `plex_movies`, `lb_lists`,
+  `lb_entries`, and `matches`.
+- Live `GET /health` returned `{"status":"ok"}`.
+- Live `GET /api/stats` returned empty counts.
+- Live `GET /api/movies?per_page=5` returned an empty safe page.
+- Live `GET /api/lists` returned `[]`.
 - `python -m mypy --no-incremental --cache-dir .mypy_cache src/plexsort` was attempted.
   It reached real type checking once cache permissions were fixed, but local installed packages/stubs
   were incomplete. Expected fix: install project dev dependencies with `pip install -e .[dev]`.
 
 ## Known Gaps
 
-- No live Postgres migration has been run yet.
-- No Docker image build has been run yet.
 - No API integration tests exist yet.
 - No frontend exists yet.
 - Plex sync has not been tested against a real server.
@@ -141,13 +149,11 @@ Initialized local git repository on 2026-06-27.
 
 ## Next Checkpoint
 
-Recommended next checkpoint: backend verification against Docker Postgres.
+Recommended next checkpoint: add API integration tests or begin the static frontend.
 
 Exit criteria:
 
-- Docker image builds.
-- Containers start.
-- Alembic migration applies.
-- `/health` returns `{"status":"ok"}`.
-- Public API endpoints return safe empty responses before data sync.
-- Initial unit tests pass.
+- API integration tests exercise `/health`, `/api/stats`, `/api/movies`, and `/api/lists`
+  against an isolated test database or controlled dependency override.
+- Or frontend files exist at `C:\website\plexsort` and can browse the empty live API cleanly.
+- Real Plex sync remains blocked until the actual `PLEX_TOKEN` value is provided.
