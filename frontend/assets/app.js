@@ -16,6 +16,9 @@ const els = {
   pageLabel: document.querySelector("#pageLabel"),
   prevPageButton: document.querySelector("#prevPageButton"),
   nextPageButton: document.querySelector("#nextPageButton"),
+  filterPanel: document.querySelector(".filter-panel"),
+  filterFields: document.querySelector("#filterFields"),
+  toggleFiltersButton: document.querySelector("#toggleFiltersButton"),
   searchInput: document.querySelector("#searchInput"),
   yearMinInput: document.querySelector("#yearMinInput"),
   yearMaxInput: document.querySelector("#yearMaxInput"),
@@ -25,6 +28,9 @@ const els = {
   clearFiltersButton: document.querySelector("#clearFiltersButton"),
   listSelect: document.querySelector("#listSelect"),
   coverageSummary: document.querySelector("#coverageSummary"),
+  missingPanel: document.querySelector("#missingPanel"),
+  missingSummary: document.querySelector("#missingSummary"),
+  missingList: document.querySelector("#missingList"),
   toast: document.querySelector("#toast"),
 };
 
@@ -112,6 +118,12 @@ function formatRating(value) {
   return value === null || value === undefined ? "--" : Number(value).toFixed(1);
 }
 
+function setFiltersCollapsed(collapsed) {
+  els.filterPanel.dataset.collapsed = collapsed ? "true" : "false";
+  els.filterFields.hidden = collapsed;
+  els.toggleFiltersButton.textContent = collapsed ? "Show" : "Hide";
+}
+
 function renderStats(stats) {
   const values = [
     ["Total", stats.total_movies],
@@ -163,11 +175,13 @@ function renderMovies(page) {
               </div>
             </div>
           </td>
-          <td>${escapeHtml(valueOrDash(movie.year))}</td>
-          <td><div class="pill-row">${genres}</div></td>
-          <td>${escapeHtml(formatRating(movie.rating))}</td>
-          <td>${escapeHtml(valueOrDash(movie.resolution))}</td>
-          <td class="${watched ? "status-good" : "status-bad"}">${watched ? "Yes" : "No"}</td>
+          <td data-label="Year">${escapeHtml(valueOrDash(movie.year))}</td>
+          <td data-label="Genres"><div class="pill-row">${genres}</div></td>
+          <td data-label="Rating">${escapeHtml(formatRating(movie.rating))}</td>
+          <td data-label="Resolution">${escapeHtml(valueOrDash(movie.resolution))}</td>
+          <td data-label="Watched" class="${watched ? "status-good" : "status-bad"}">${
+            watched ? "Yes" : "No"
+          }</td>
         </tr>
       `;
     })
@@ -197,6 +211,44 @@ function renderCoverage(result) {
     .join("");
 }
 
+function renderMissing(result) {
+  if (!els.listSelect.value) {
+    els.missingPanel.hidden = false;
+    els.missingSummary.textContent = "Choose a Letterboxd list to see what Plex is missing.";
+    els.missingList.innerHTML = "";
+    return;
+  }
+
+  els.missingPanel.hidden = false;
+  const missing = result.lb_only || [];
+  els.missingSummary.textContent = missing.length
+    ? `${missing.length} title${missing.length === 1 ? "" : "s"} to add for full coverage.`
+    : "Full coverage for this list.";
+
+  if (!missing.length) {
+    els.missingList.innerHTML = '<div class="empty-state compact"><strong>Nothing missing</strong></div>';
+    return;
+  }
+
+  els.missingList.innerHTML = missing
+    .map(
+      (entry) => `
+        <article class="missing-item">
+          <div>
+            <strong>${escapeHtml(entry.title)}</strong>
+            <span>${escapeHtml(valueOrDash(entry.year))}</span>
+          </div>
+          ${
+            entry.lb_film_url
+              ? `<a class="ghost-button" href="${escapeHtml(entry.lb_film_url)}" target="_blank" rel="noreferrer">Letterboxd</a>`
+              : ""
+          }
+        </article>
+      `,
+    )
+    .join("");
+}
+
 async function loadStats() {
   renderStats(await apiFetch("/stats"));
 }
@@ -214,9 +266,12 @@ async function loadCoverage() {
   const id = els.listSelect.value;
   if (!id) {
     renderCoverage({ coverage_pct: "--", in_both: [], lb_only: [] });
+    renderMissing({ lb_only: [] });
     return;
   }
-  renderCoverage(await apiFetch(`/lists/${id}/compare`));
+  const comparison = await apiFetch(`/lists/${id}/compare`);
+  renderCoverage(comparison);
+  renderMissing(comparison);
 }
 
 async function refreshMovies() {
@@ -291,15 +346,23 @@ function bindEvents() {
     refreshMovies();
   });
 
+  els.toggleFiltersButton.addEventListener("click", () => {
+    setFiltersCollapsed(els.filterPanel.dataset.collapsed !== "true");
+  });
+
   els.listSelect.addEventListener("change", () => {
     loadCoverage().catch((error) => showToast(error.message));
   });
 }
 
 async function init() {
+  if (window.matchMedia("(max-width: 880px)").matches) {
+    setFiltersCollapsed(true);
+  }
   bindEvents();
   try {
     await Promise.all([loadStats(), loadMovies(), loadLists()]);
+    await loadCoverage();
   } catch (error) {
     showToast(error.message);
   }

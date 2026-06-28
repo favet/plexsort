@@ -27,6 +27,8 @@ As of 2026-06-27:
 - Plex ingestion now has pagination support plus tests proving Plex `Part file`
   paths are ignored.
 - Admin review now shows pending/reviewed counts and All/Low/None filters.
+- Public mobile UI now collapses filters and renders movies as cards.
+- Public list comparison now exposes `Missing From Plex` as the main coverage gap view.
 
 ---
 
@@ -253,6 +255,8 @@ All responses use Pydantic schemas that explicitly list safe fields (no file pat
 
 `GET /api/lists/{id}/compare` — gap/overlap report for one list vs Plex library
 - Returns: `{ in_both: [...], plex_only: [...], lb_only: [...], coverage_pct: float }`
+- The public UI treats `lb_only` as `Missing From Plex`, which is the acquisition/coverage
+  todo list.
 
 `GET /api/stats` — summary counts (total movies, total watched, lists loaded, etc.)
 
@@ -328,6 +332,9 @@ first real unmatched queue workflow plus queue summary/filtering.
 - Match review queue with Plex movie search, confirm, and skip/manual-unmatched actions
 - Job progress display for sync, import, and matching jobs
 - Review queue counts and All/Low/None filter buttons
+
+Public mobile status: filters collapse on small screens, stats stay compact, and movie rows
+render as cards instead of a horizontally clipped table.
 
 Design: match the dark aesthetic of cine.favet.net (`--bg: #0d0c18`, gold accents).
 

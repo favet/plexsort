@@ -138,6 +138,12 @@ a {
   gap: 16px;
 }
 
+.panel-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 h1,
 h2,
 p {
@@ -205,6 +211,11 @@ button:focus-visible {
 .field-grid {
   display: grid;
   gap: 10px;
+}
+
+.filter-fields {
+  display: grid;
+  gap: 14px;
 }
 
 .field-grid.two {
@@ -316,6 +327,55 @@ button:focus-visible {
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--panel);
+}
+
+.missing-panel {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 18px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+}
+
+.missing-list {
+  display: grid;
+  gap: 8px;
+  max-height: 420px;
+  overflow: auto;
+}
+
+.missing-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid rgba(52, 50, 70, 0.72);
+  border-radius: 6px;
+  background: #11101e;
+}
+
+.missing-item div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.missing-item strong {
+  overflow-wrap: anywhere;
+}
+
+.missing-item span {
+  color: var(--muted);
+  font-size: 0.84rem;
+}
+
+.missing-item .ghost-button {
+  flex: 0 0 auto;
+  min-height: 32px;
 }
 
 table {
@@ -431,6 +491,10 @@ tbody tr:hover {
   padding: 52px 20px;
   color: var(--muted);
   text-align: center;
+}
+
+.empty-state.compact {
+  padding: 18px;
 }
 
 .empty-state strong {
@@ -610,26 +674,74 @@ progress {
 
 @media (max-width: 880px) {
   .topbar {
+    height: 52px;
     padding: 0 14px;
+  }
+
+  .brand-mark {
+    width: 26px;
+    height: 26px;
   }
 
   .app-shell,
   .admin-grid {
     grid-template-columns: 1fr;
+    min-height: auto;
   }
 
   .sidebar {
     border-right: 0;
     border-bottom: 1px solid var(--line);
+    padding: 12px;
   }
 
   .workspace,
   .admin-shell {
-    padding: 16px;
+    padding: 14px;
+  }
+
+  .tool-panel {
+    gap: 12px;
+    padding: 12px;
+    box-shadow: none;
+  }
+
+  .sidebar .tool-panel + .tool-panel {
+    margin-top: 10px;
+  }
+
+  .panel-title {
+    gap: 10px;
   }
 
   .metric-strip {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+
+  .metric-strip div {
+    min-height: 58px;
+    padding: 10px;
+  }
+
+  .metric-strip strong {
+    font-size: 1.18rem;
+  }
+
+  .coverage-list {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .coverage-list div {
+    display: grid;
+    gap: 3px;
+  }
+
+  .coverage-list dd {
+    font-size: 1.08rem;
+    font-weight: 720;
   }
 
   .table-toolbar,
@@ -637,5 +749,118 @@ progress {
   .review-toolbar {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .table-toolbar {
+    gap: 10px;
+  }
+
+  .toolbar-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  #pageLabel {
+    flex: 1;
+  }
+
+  .missing-panel {
+    padding: 12px;
+    box-shadow: none;
+  }
+
+  .missing-list {
+    max-height: 340px;
+  }
+}
+
+@media (max-width: 700px) {
+  .table-frame {
+    overflow: visible;
+    border: 0;
+    background: transparent;
+  }
+
+  table,
+  tbody,
+  tr,
+  td {
+    display: block;
+    width: 100%;
+  }
+
+  table {
+    min-width: 0;
+  }
+
+  thead {
+    display: none;
+  }
+
+  tbody {
+    display: grid;
+    gap: 10px;
+  }
+
+  tr {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px 12px;
+    padding: 12px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--panel);
+  }
+
+  td {
+    border: 0;
+    padding: 0;
+  }
+
+  td:first-child {
+    grid-column: 1 / -1;
+  }
+
+  td[data-label] {
+    display: grid;
+    gap: 2px;
+    color: var(--text);
+    font-size: 0.92rem;
+  }
+
+  td[data-label]::before {
+    content: attr(data-label);
+    color: var(--muted);
+    font-size: 0.72rem;
+    text-transform: uppercase;
+  }
+
+  td[data-label="Genres"] {
+    grid-column: 1 / -1;
+  }
+
+  td[data-label="Rating"] {
+    display: none;
+  }
+
+  .movie-title {
+    min-width: 0;
+  }
+
+  .movie-title strong {
+    overflow-wrap: anywhere;
+  }
+
+  .pill {
+    max-width: 100%;
+  }
+
+  .missing-item {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .missing-item .ghost-button {
+    text-align: center;
   }
 }

@@ -19,55 +19,60 @@
 
     <main class="app-shell">
       <aside class="sidebar" aria-label="Movie filters">
-        <section class="tool-panel">
+        <section class="tool-panel filter-panel" data-collapsed="false">
           <div class="panel-title">
             <h2>Filters</h2>
-            <button class="ghost-button" id="clearFiltersButton" type="button">Clear</button>
+            <div class="panel-actions">
+              <button class="ghost-button" id="toggleFiltersButton" type="button">Hide</button>
+              <button class="ghost-button" id="clearFiltersButton" type="button">Clear</button>
+            </div>
           </div>
 
-          <label>
-            Search
-            <input id="searchInput" type="search" autocomplete="off" />
-          </label>
+          <div class="filter-fields" id="filterFields">
+            <label>
+              Search
+              <input id="searchInput" type="search" autocomplete="off" />
+            </label>
 
-          <div class="field-grid two">
+            <div class="field-grid two">
+              <label>
+                From
+                <input id="yearMinInput" type="number" min="1880" max="2100" inputmode="numeric" />
+              </label>
+              <label>
+                To
+                <input id="yearMaxInput" type="number" min="1880" max="2100" inputmode="numeric" />
+              </label>
+            </div>
+
             <label>
-              From
-              <input id="yearMinInput" type="number" min="1880" max="2100" inputmode="numeric" />
+              Genre
+              <input id="genreInput" type="text" autocomplete="off" />
             </label>
+
             <label>
-              To
-              <input id="yearMaxInput" type="number" min="1880" max="2100" inputmode="numeric" />
+              Resolution
+              <select id="resolutionSelect">
+                <option value="">Any</option>
+                <option value="4k">4K</option>
+                <option value="1080">1080p</option>
+                <option value="720">720p</option>
+                <option value="sd">SD</option>
+              </select>
             </label>
+
+            <label>
+              Content rating
+              <input id="contentRatingInput" type="text" autocomplete="off" />
+            </label>
+
+            <fieldset class="segmented" aria-label="Watched status">
+              <legend>Watched</legend>
+              <label><input type="radio" name="watched" value="" checked /> Any</label>
+              <label><input type="radio" name="watched" value="true" /> Yes</label>
+              <label><input type="radio" name="watched" value="false" /> No</label>
+            </fieldset>
           </div>
-
-          <label>
-            Genre
-            <input id="genreInput" type="text" autocomplete="off" />
-          </label>
-
-          <label>
-            Resolution
-            <select id="resolutionSelect">
-              <option value="">Any</option>
-              <option value="4k">4K</option>
-              <option value="1080">1080p</option>
-              <option value="720">720p</option>
-              <option value="sd">SD</option>
-            </select>
-          </label>
-
-          <label>
-            Content rating
-            <input id="contentRatingInput" type="text" autocomplete="off" />
-          </label>
-
-          <fieldset class="segmented" aria-label="Watched status">
-            <legend>Watched</legend>
-            <label><input type="radio" name="watched" value="" checked /> Any</label>
-            <label><input type="radio" name="watched" value="true" /> Yes</label>
-            <label><input type="radio" name="watched" value="false" /> No</label>
-          </fieldset>
         </section>
 
         <section class="tool-panel">
@@ -93,6 +98,16 @@
           <div><span>Total</span><strong>--</strong></div>
           <div><span>Watched</span><strong>--</strong></div>
           <div><span>Lists</span><strong>--</strong></div>
+        </section>
+
+        <section class="missing-panel" id="missingPanel" hidden>
+          <div class="panel-title">
+            <div>
+              <h2>Missing From Plex</h2>
+              <p id="missingSummary">Select a Letterboxd list to see gaps.</p>
+            </div>
+          </div>
+          <div class="missing-list" id="missingList"></div>
         </section>
 
         <div class="table-toolbar">
@@ -136,4 +151,3 @@
     <script src="assets/app.js"></script>
   </body>
 </html>
-

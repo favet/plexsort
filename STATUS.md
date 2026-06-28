@@ -206,6 +206,31 @@ Live verification after deploy:
 - Browser smoke was attempted, but the browser automation timed out while waiting for page
   load state, so it is not counted as a passed validation checkpoint.
 
+### 2026-06-27 - Mobile Public UI and Missing Coverage View
+
+Tightened the public mobile UI after reviewing phone screenshots:
+
+- Public filters now collapse automatically on mobile instead of taking the full first screen.
+- Library stats remain compact in a three-column strip on mobile.
+- Movie table rows become mobile cards below 700px instead of a horizontally clipped table.
+- Added a first-class `Missing From Plex` section on the public page.
+- Selecting a Letterboxd list now renders the `lb_only` entries from
+  `GET /api/lists/{id}/compare`, which is the list of titles on Letterboxd but not in Plex.
+- The missing section is visible as a prompt even before a list is selected.
+
+Current live coverage gaps:
+
+- `1 Million Club`: 489 in Plex, 291 missing, 62.69% coverage.
+- `Movies on Plex`: 1,340 in Plex, 66 missing, 95.31% coverage.
+
+Validation:
+
+- Static assets copied to `C:\website\plexsort`.
+- Public `GET /` returned `200`.
+- Live page HTML contains `Missing From Plex`.
+- Browser/mobile automation was attempted again, but the in-app browser timed out and reset,
+  so visual verification is still not counted as passed.
+
 ## Decisions Made
 
 - Use Python 3.11+ with FastAPI.
@@ -248,6 +273,8 @@ These must remain true after every checkpoint:
 | Admin API | Progress-enabled | Admin mutations now queue background jobs with status records. |
 | Admin review | First pass | Search, confirm, and skip tools exist for the review queue. |
 | Admin review filters | Done, first pass | Counts and All/Low/None filters are live. |
+| Public mobile UI | Improved | Filters collapse; movie rows become cards; stats stay compact. |
+| Missing coverage view | Done, first pass | Public UI shows Letterboxd titles missing from Plex. |
 | API tests | Improved | Public/admin route tests now cover core response shapes and manual review. |
 | Type checking | Passing | `mypy` is green after installing dev extras. |
 | Frontend | First pass live | Tracked under `frontend/`; deployed to `C:\website\plexsort`. |
@@ -356,6 +383,15 @@ Initialized local git repository on 2026-06-27.
 - `docker compose up -d app` restarted the rebuilt app container after admin review
   filter changes.
 - Updated static admin assets were copied to `C:\website\plexsort`.
+- `python -m ruff check .` passed after the mobile public UI changes.
+- `python -m compileall src alembic tests` passed after the mobile public UI changes.
+- `python -m pytest` passed with 13 tests after the mobile public UI changes.
+- `python -m mypy --no-incremental --cache-dir .mypy_cache src/plexsort` passed with
+  no issues after the mobile public UI changes.
+- `node --check frontend\assets\app.js` passed after the mobile public UI changes.
+- `node --check frontend\assets\admin.js` passed after the mobile public UI changes.
+- Public `https://plex.favet.net/` returned `200` after the mobile public UI changes.
+- Public compare checks returned the current missing counts for both imported lists.
 
 ## Known Gaps
 
@@ -373,3 +409,4 @@ Exit criteria:
   once a TMDB API key is available.
 - Add safer bulk workflow controls for the review queue.
 - Add browser-level admin UI verification once browser automation is responsive.
+- Add browser-level public mobile UI verification once browser automation is responsive.
