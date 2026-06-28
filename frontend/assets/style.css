@@ -878,6 +878,10 @@ tbody tr[data-in-list="true"] {
   margin-top: 3px;
 }
 
+.mobile-card-meta {
+  display: none;
+}
+
 .poster-thumb {
   flex: 0 0 auto;
   width: 50px;
@@ -1281,9 +1285,7 @@ progress {
   }
 
   tr {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    gap: 6px 10px;
+    display: block;
     padding: 10px;
     border: 1px solid var(--line);
   }
@@ -1313,6 +1315,14 @@ progress {
     letter-spacing: 0.1em;
   }
 
+  td[data-column]:not([data-column="title"]) {
+    display: none;
+  }
+
+  td[data-column="title"]::before {
+    display: none;
+  }
+
   td[data-label="Genres"] {
     grid-column: 1 / -1;
   }
@@ -1327,9 +1337,29 @@ progress {
 
   .movie-title {
     min-width: 0;
+    align-items: flex-start;
   }
 
   .movie-title strong {
     overflow-wrap: anywhere;
+  }
+
+  .movie-title .movie-meta {
+    display: none;
+  }
+
+  .mobile-card-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 7px;
+  }
+
+  .mobile-card-meta span {
+    border: 1px solid var(--line);
+    color: var(--muted);
+    font-size: 0.72rem;
+    line-height: 1.2;
+    padding: 3px 6px;
   }
 }

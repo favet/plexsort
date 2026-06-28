@@ -493,6 +493,17 @@ function renderRatingsCell(movie) {
     </span>`;
 }
 
+function renderMobileMeta(movie) {
+  const items = [
+    movie.year ? String(movie.year) : "",
+    movie.omdb_imdb_rating ? `IMDb ${movie.omdb_imdb_rating}` : "",
+    movie.omdb_rt_rating ? `RT ${movie.omdb_rt_rating}` : "",
+    formatResolution(movie.resolution),
+    movie.view_count > 0 ? "Watched" : "Unwatched",
+  ].filter((item) => item && item !== "--");
+  return items.map((item) => `<span>${escapeHtml(item)}</span>`).join("");
+}
+
 function renderTitleCell(movie, thumb, genreHtml) {
   return `
     <div class="movie-title">
@@ -503,6 +514,7 @@ function renderTitleCell(movie, thumb, genreHtml) {
       <div>
         <strong>${escapeHtml(movie.title)}</strong>
         <div class="muted">${escapeHtml(valueOrDash(movie.content_rating))}</div>
+        <div class="mobile-card-meta">${renderMobileMeta(movie)}</div>
         ${genreHtml ? `<div class="movie-meta">${genreHtml}</div>` : ""}
       </div>
     </div>`;
@@ -621,7 +633,7 @@ function renderMovies(page) {
       const inList = matchedPlexKeys.has(movie.plex_rating_key);
       return `
         <tr data-movie-key="${escapeHtml(movie.plex_rating_key)}" data-in-list="${inList}">
-          ${state.visibleColumns.map((key) => `<td data-label="${escapeHtml(COLUMN_DEFS[key].label)}">${renderCell(movie, key, thumb, genreHtml)}</td>`).join("")}
+          ${state.visibleColumns.map((key) => `<td data-column="${escapeHtml(key)}" data-label="${escapeHtml(COLUMN_DEFS[key].label)}">${renderCell(movie, key, thumb, genreHtml)}</td>`).join("")}
         </tr>`;
     })
     .join("");
