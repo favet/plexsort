@@ -93,6 +93,7 @@ def seed_database(db: Session) -> None:
             ],
         },
         omdb_box_office="$467,231,855",
+        omdb_box_office_raw=467231855,
         omdb_metascore=73,
         omdb_rt_rating="83%",
     )
@@ -247,6 +248,8 @@ def test_public_api_uses_safe_response_shapes(client: TestClient) -> None:
     assert enriched_filter["items"][0]["title"] == "The Matrix"
 
     assert response_json(client.get("/api/movies?sort=imdb_rating&dir=desc"))["total"] == 2
+    box_office_sorted = response_json(client.get("/api/movies?sort=box_office&dir=desc"))
+    assert box_office_sorted["items"][0]["title"] == "The Matrix"
 
     has_omdb_yes = response_json(client.get("/api/movies?has_omdb=true"))
     assert has_omdb_yes["total"] == 1

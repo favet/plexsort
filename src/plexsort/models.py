@@ -55,6 +55,7 @@ class PlexMovie(Base):
     last_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     omdb_box_office: Mapped[str | None] = mapped_column(Text)
+    omdb_box_office_raw: Mapped[int | None] = mapped_column(BigInteger)
     omdb_awards: Mapped[str | None] = mapped_column(Text)
     omdb_metascore: Mapped[int | None] = mapped_column(Integer)
     omdb_imdb_votes: Mapped[int | None] = mapped_column(Integer)

@@ -57,6 +57,20 @@ def _first_media_attr(video: ElementTree.Element, attr: str) -> str | None:
     return value or None
 
 
+def _bitrate_kbps(video: ElementTree.Element) -> int | None:
+    """Read overall bitrate, trying <Media> then <Part> (Plex varies by version/analysis state)."""
+    for element in (video.find("./Media"), video.find("./Media/Part")):
+        if element is None:
+            continue
+        raw = element.attrib.get("bitrate")
+        if raw:
+            try:
+                return int(raw)
+            except ValueError:
+                pass
+    return None
+
+
 def _rating_id(video: ElementTree.Element, scheme: str) -> str | None:
     prefix = f"{scheme}://"
     for guid in video.findall("./Guid"):
@@ -83,7 +97,7 @@ def movie_from_video(video: ElementTree.Element, synced_at: datetime) -> dict[st
         "genres": _text_list(video, "Genre"),
         "directors": _text_list(video, "Director"),
         "duration_ms": int(video.attrib["duration"]) if video.attrib.get("duration") else None,
-        "bitrate_kbps": int(rb) if (rb := _first_media_attr(video, "bitrate")) else None,
+        "bitrate_kbps": _bitrate_kbps(video),
         "resolution": _first_media_attr(video, "videoResolution"),
         "video_codec": _first_media_attr(video, "videoCodec"),
         "audience_rating": video.attrib.get("audienceRating"),

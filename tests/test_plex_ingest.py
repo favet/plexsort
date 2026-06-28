@@ -82,7 +82,7 @@ def test_sync_plex_movies_paginates_and_strips_file_paths(
                 '<Guid id="tmdb://329865" /><Guid id="imdb://tt2543164" />'
                 '<Genre tag="Science Fiction" /><Director tag="Denis Villeneuve" />'
                 '<Media videoResolution="4K" videoCodec="hevc">'
-                '<Part file="D:\\Movies\\Arrival\\Arrival.mkv" />'
+                '<Part bitrate="24000" file="D:\\Movies\\Arrival\\Arrival.mkv" />'
                 "</Media></Video></MediaContainer>"
             )
 
@@ -94,7 +94,7 @@ def test_sync_plex_movies_paginates_and_strips_file_paths(
                 'lastViewedAt="1700000500" viewCount="2">'
                 '<Guid id="tmdb://603" /><Guid id="imdb://tt0133093" />'
                 '<Genre tag="Action" /><Director tag="Lana Wachowski" />'
-                '<Media videoResolution="1080" videoCodec="h264">'
+                '<Media bitrate="8500" videoResolution="1080" videoCodec="h264">'
                 '<Part file="D:\\Movies\\The Matrix\\The Matrix.mkv" />'
                 "</Media></Video></MediaContainer>"
             )
@@ -121,6 +121,8 @@ def test_sync_plex_movies_paginates_and_strips_file_paths(
     assert movies[0].tmdb_id == "329865"
     assert movies[0].resolution == "4K"
     assert movies[0].video_codec == "hevc"
+    assert movies[0].bitrate_kbps == 24000  # from <Part bitrate>
+    assert movies[1].bitrate_kbps == 8500   # from <Media bitrate>
 
     public_payload = [MoviePublic.model_validate(movie).model_dump() for movie in movies]
     assert all("file" not in movie for movie in public_payload)

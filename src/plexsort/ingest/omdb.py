@@ -67,6 +67,7 @@ def _enrich(movie: PlexMovie, data: dict[str, Any]) -> None:
     now = datetime.now(UTC)
     movie.omdb_payload = data
     movie.omdb_box_office = _na(data.get("BoxOffice"))
+    movie.omdb_box_office_raw = _parse_int(data.get("BoxOffice"))
     movie.omdb_awards = _na(data.get("Awards"))
     movie.omdb_metascore = _parse_int(data.get("Metascore"))
     movie.omdb_imdb_votes = _parse_int(data.get("imdbVotes"))

@@ -13,7 +13,7 @@ import requests
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import FileResponse, StreamingResponse
 from PIL import Image
-from sqlalchemy import Float, Select, cast, func, select
+from sqlalchemy import Float, Select, cast, func, nullslast, select
 from sqlalchemy.orm import Session
 from sqlalchemy.sql.elements import ColumnElement
 
@@ -82,6 +82,7 @@ SORT_COLUMNS = {
     "view_count": PlexMovie.view_count,
     "duration": PlexMovie.duration_ms,
     "bitrate": PlexMovie.bitrate_kbps,
+    "box_office": PlexMovie.omdb_box_office_raw,
     "imdb_rating": cast(_omdb_text("imdbRating"), Float),
     "metascore": cast(_omdb_text("Metascore"), Float),
     "released": _omdb_text("Released"),
@@ -367,7 +368,8 @@ def list_movies(
         has_omdb=has_omdb,
     )
     sort_column = SORT_COLUMNS.get(sort, PlexMovie.title_sort)
-    statement = statement.order_by(sort_column.desc() if dir == "desc" else sort_column.asc())
+    order = sort_column.desc() if dir == "desc" else sort_column.asc()
+    statement = statement.order_by(nullslast(order))
     total = db.scalar(select(func.count()).select_from(statement.subquery())) or 0
     items = list(db.scalars(statement.offset((page - 1) * per_page).limit(per_page)).all())
     return MoviePage(

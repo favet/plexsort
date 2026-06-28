@@ -29,6 +29,20 @@ const COLUMN_PRESETS = {
   omdb: ["title", "year", "imdb_rating", "rated", "released", "runtime", "country"],
 };
 
+const SORT_TO_COLUMN = {
+  year: "year",
+  duration: "duration",
+  rating: "rating",
+  audience_rating: "audience",
+  imdb_rating: "imdb_rating",
+  metascore: "metascore",
+  released: "released",
+  bitrate: "bitrate",
+  box_office: "box_office",
+  added_at: "added",
+  view_count: "watched",
+};
+
 const COLUMN_DEFS = {
   title: { label: "Title", sort: "title" },
   year: { label: "Year", sort: "year", render: (m) => valueOrDash(m.year) },
@@ -484,6 +498,16 @@ function renderColumnControls() {
     .join("");
 }
 
+function promoteSortColumn(sortKey) {
+  const colKey = SORT_TO_COLUMN[sortKey];
+  if (!colKey || !COLUMN_DEFS[colKey]) return;
+  if (state.visibleColumns[1] === colKey) return;
+  const rest = state.visibleColumns.filter((k) => k !== "title" && k !== colKey);
+  state.visibleColumns = ["title", colKey, ...rest];
+  saveColumnState();
+  renderColumnControls();
+}
+
 function renderTableHeader() {
   els.moviesHead.innerHTML = state.visibleColumns.map((key) => {
     const def = COLUMN_DEFS[key];
@@ -855,8 +879,13 @@ function bindEvents() {
     const btn = event.target.closest("button[data-sort]");
     if (!btn) return;
     const sort = btn.dataset.sort;
-    if (state.sort === sort) { state.dir = state.dir === "asc" ? "desc" : "asc"; }
-    else { state.sort = sort; state.dir = "asc"; }
+    if (state.sort === sort) {
+      state.dir = state.dir === "asc" ? "desc" : "asc";
+    } else {
+      state.sort = sort;
+      state.dir = "asc";
+      promoteSortColumn(sort);
+    }
     refreshMovies();
   });
 
@@ -881,6 +910,7 @@ function bindEvents() {
   els.sortSelect.addEventListener("change", () => {
     state.sort = els.sortSelect.value;
     state.page = 1;
+    promoteSortColumn(state.sort);
     refreshMovies();
   });
 
@@ -1049,6 +1079,7 @@ async function init() {
   if (isMobile) { setSidebarOpen(false); setFiltersCollapsed(false); }
 
   loadColumnState();
+  if (state.sort !== "title") promoteSortColumn(state.sort);
   renderColumnControls();
   bindEvents();
   updateSortDropdown();
