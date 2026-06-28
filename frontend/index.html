@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>PlexSort</title>
-    <link rel="stylesheet" href="assets/style.css?v=14" />
+    <link rel="stylesheet" href="assets/style.css?v=15" />
   </head>
   <body data-view="public">
     <header class="topbar">
@@ -69,6 +69,32 @@
               <input id="contentRatingInput" type="text" autocomplete="off" />
             </label>
 
+            <div class="field-grid two">
+              <label>
+                IMDb from
+                <input id="minImdbInput" type="number" min="0" max="10" step="0.1" inputmode="decimal" />
+              </label>
+              <label>
+                Metascore from
+                <input id="minMetascoreInput" type="number" min="0" max="100" step="1" inputmode="numeric" />
+              </label>
+            </div>
+
+            <label>
+              OMDb rated
+              <input id="omdbRatedInput" type="text" autocomplete="off" />
+            </label>
+
+            <label>
+              Country
+              <input id="countryInput" type="text" autocomplete="off" />
+            </label>
+
+            <label>
+              Language
+              <input id="languageInput" type="text" autocomplete="off" />
+            </label>
+
             <fieldset class="segmented" aria-label="Watched status">
               <legend>Watched</legend>
               <label><input type="radio" name="watched" value="" checked /> Any</label>
@@ -120,6 +146,9 @@
               <option value="duration">Duration</option>
               <option value="rating">Critic rating</option>
               <option value="audience_rating">Audience rating</option>
+              <option value="imdb_rating">IMDb rating</option>
+              <option value="metascore">Metascore</option>
+              <option value="released">Released</option>
               <option value="bitrate">Bitrate</option>
               <option value="added_at">Date added</option>
               <option value="view_count">View count</option>
@@ -193,6 +222,6 @@
     </div>
 
     <datalist id="genreOptions"></datalist>
-    <script src="assets/app.js?v=14"></script>
+    <script src="assets/app.js?v=15"></script>
   </body>
 </html>

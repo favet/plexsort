@@ -36,11 +36,11 @@ const COLUMN_DEFS = {
   ratings: { label: "Ratings" },
   rating: { label: "Plex Critic", sort: "rating", render: (m) => formatRating(m.rating) },
   audience: { label: "Plex Audience", sort: "audience_rating", render: (m) => formatRating(m.audience_rating) },
-  imdb_rating: { label: "IMDb", render: (m) => valueOrDash(m.omdb_imdb_rating) },
-  metascore: { label: "Metascore", render: (m) => valueOrDash(m.omdb_metascore) },
+  imdb_rating: { label: "IMDb", sort: "imdb_rating", render: (m) => valueOrDash(m.omdb_imdb_rating) },
+  metascore: { label: "Metascore", sort: "metascore", render: (m) => valueOrDash(m.omdb_metascore) },
   rt_rating: { label: "RT", render: (m) => valueOrDash(m.omdb_rt_rating) },
   box_office: { label: "Box Office", render: (m) => valueOrDash(m.omdb_box_office) },
-  released: { label: "Released", render: (m) => valueOrDash(m.omdb_released) },
+  released: { label: "Released", sort: "released", render: (m) => valueOrDash(m.omdb_released) },
   rated: { label: "Rated", render: (m) => valueOrDash(m.omdb_rated || m.content_rating) },
   runtime: { label: "Runtime", render: (m) => valueOrDash(m.omdb_runtime) },
   country: { label: "Country", render: (m) => valueOrDash(m.omdb_country) },
@@ -86,6 +86,11 @@ const els = {
   genreDatalist: document.querySelector("#genreOptions"),
   resolutionSelect: document.querySelector("#resolutionSelect"),
   contentRatingInput: document.querySelector("#contentRatingInput"),
+  omdbRatedInput: document.querySelector("#omdbRatedInput"),
+  countryInput: document.querySelector("#countryInput"),
+  languageInput: document.querySelector("#languageInput"),
+  minImdbInput: document.querySelector("#minImdbInput"),
+  minMetascoreInput: document.querySelector("#minMetascoreInput"),
   clearFiltersButton: document.querySelector("#clearFiltersButton"),
   listSelect: document.querySelector("#listSelect"),
   coverageSummary: document.querySelector("#coverageSummary"),
@@ -230,6 +235,11 @@ function filters() {
     genre: els.genreInput.value.trim(),
     resolution: els.resolutionSelect.value,
     content_rating: els.contentRatingInput.value.trim(),
+    omdb_rated: els.omdbRatedInput.value.trim(),
+    country: els.countryInput.value.trim(),
+    language: els.languageInput.value.trim(),
+    min_imdb_rating: els.minImdbInput.value,
+    min_metascore: els.minMetascoreInput.value,
     watched,
   };
 }
@@ -271,6 +281,11 @@ function pushUrlState() {
   if (f.year_max) params.set("year_max", f.year_max);
   if (f.resolution) params.set("resolution", f.resolution);
   if (f.content_rating) params.set("content_rating", f.content_rating);
+  if (f.omdb_rated) params.set("omdb_rated", f.omdb_rated);
+  if (f.country) params.set("country", f.country);
+  if (f.language) params.set("language", f.language);
+  if (f.min_imdb_rating) params.set("min_imdb_rating", f.min_imdb_rating);
+  if (f.min_metascore) params.set("min_metascore", f.min_metascore);
   if (f.watched) params.set("watched", f.watched);
   if (state.sort !== "title") params.set("sort", state.sort);
   if (state.dir !== "asc") params.set("dir", state.dir);
@@ -290,6 +305,11 @@ function parseUrlState() {
   if (p.get("year_max")) els.yearMaxInput.value = p.get("year_max");
   if (p.get("resolution")) els.resolutionSelect.value = p.get("resolution");
   if (p.get("content_rating")) els.contentRatingInput.value = p.get("content_rating");
+  if (p.get("omdb_rated")) els.omdbRatedInput.value = p.get("omdb_rated");
+  if (p.get("country")) els.countryInput.value = p.get("country");
+  if (p.get("language")) els.languageInput.value = p.get("language");
+  if (p.get("min_imdb_rating")) els.minImdbInput.value = p.get("min_imdb_rating");
+  if (p.get("min_metascore")) els.minMetascoreInput.value = p.get("min_metascore");
   if (p.get("watched")) {
     const el = document.querySelector(`input[name='watched'][value='${p.get("watched")}']`);
     if (el) el.checked = true;
@@ -328,6 +348,11 @@ function clearFilter(name) {
     case "year_max": els.yearMaxInput.value = ""; break;
     case "resolution": els.resolutionSelect.value = ""; break;
     case "content_rating": els.contentRatingInput.value = ""; break;
+    case "omdb_rated": els.omdbRatedInput.value = ""; break;
+    case "country": els.countryInput.value = ""; break;
+    case "language": els.languageInput.value = ""; break;
+    case "min_imdb_rating": els.minImdbInput.value = ""; break;
+    case "min_metascore": els.minMetascoreInput.value = ""; break;
     case "watched": document.querySelector("input[name='watched'][value='']").checked = true; break;
   }
 }
@@ -343,6 +368,11 @@ function renderActiveFilters() {
   else if (f.year_max) chips.push({ label: `To ${f.year_max}`, key: "year_max" });
   if (f.resolution) chips.push({ label: formatResolution(f.resolution), key: "resolution" });
   if (f.content_rating) chips.push({ label: `Rating: ${f.content_rating}`, key: "content_rating" });
+  if (f.omdb_rated) chips.push({ label: `OMDb rated: ${f.omdb_rated}`, key: "omdb_rated" });
+  if (f.country) chips.push({ label: `Country: ${f.country}`, key: "country" });
+  if (f.language) chips.push({ label: `Language: ${f.language}`, key: "language" });
+  if (f.min_imdb_rating) chips.push({ label: `IMDb >= ${f.min_imdb_rating}`, key: "min_imdb_rating" });
+  if (f.min_metascore) chips.push({ label: `Metascore >= ${f.min_metascore}`, key: "min_metascore" });
   if (f.watched === "true") chips.push({ label: "Watched", key: "watched" });
   if (f.watched === "false") chips.push({ label: "Unwatched", key: "watched" });
   if (state.listFilter && els.listSelect.value) {
@@ -774,7 +804,9 @@ function bindEvents() {
   const debouncedRefresh = debounce(() => { state.page = 1; refreshMovies(); });
 
   [els.searchInput, els.yearMinInput, els.yearMaxInput, els.genreInput,
-   els.resolutionSelect, els.contentRatingInput].forEach((el) => el.addEventListener("input", debouncedRefresh));
+   els.resolutionSelect, els.contentRatingInput, els.omdbRatedInput,
+   els.countryInput, els.languageInput, els.minImdbInput, els.minMetascoreInput]
+    .forEach((el) => el.addEventListener("input", debouncedRefresh));
 
   document.querySelectorAll("input[name='watched']").forEach((el) => el.addEventListener("change", debouncedRefresh));
 
@@ -906,6 +938,11 @@ function bindEvents() {
     els.genreInput.value = "";
     els.resolutionSelect.value = "";
     els.contentRatingInput.value = "";
+    els.omdbRatedInput.value = "";
+    els.countryInput.value = "";
+    els.languageInput.value = "";
+    els.minImdbInput.value = "";
+    els.minMetascoreInput.value = "";
     document.querySelector("input[name='watched'][value='']").checked = true;
     state.page = 1;
     refreshMovies();

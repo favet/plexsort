@@ -229,6 +229,14 @@ def test_public_api_uses_safe_response_shapes(client: TestClient) -> None:
     assert [item["title"] for item in comparison["lb_only"]] == ["No Such Film"]
     assert [item["title"] for item in comparison["plex_only"]] == ["Arrival"]
 
+    enriched_filter = response_json(
+        client.get("/api/movies?country=Australia&language=English&min_imdb_rating=8.5")
+    )
+    assert enriched_filter["total"] == 1
+    assert enriched_filter["items"][0]["title"] == "The Matrix"
+
+    assert response_json(client.get("/api/movies?sort=imdb_rating&dir=desc"))["total"] == 2
+
 
 def test_admin_review_search_and_patch_workflow(client: TestClient) -> None:
     candidates = response_json(client.get("/api/admin/movies/search?q=Matrix&limit=5"))

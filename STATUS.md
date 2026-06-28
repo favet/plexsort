@@ -576,6 +576,40 @@ Validation:
 - Live public HTML references `assets/style.css?v=14`, `assets/app.js?v=14`, and includes
   the `columnPanel` markup.
 
+### 2026-06-28 - Enriched Filters and Sorts
+
+Added first-pass OMDb-powered filtering and sorting:
+
+- Backend `/api/movies` now supports whitelisted enriched sorts:
+  - `imdb_rating`
+  - `metascore`
+  - `released`
+- Backend `/api/movies` and `/api/export/movies-csv` now support enriched filters:
+  - `omdb_rated`
+  - `country`
+  - `language`
+  - `min_imdb_rating`
+  - `min_metascore`
+- Public sidebar includes controls for those enriched filters.
+- Public sort dropdown includes IMDb rating, Metascore, and Released.
+- Export URLs include the new enriched filters.
+
+Validation:
+
+- `python -m ruff check .` passed.
+- `python -m compileall src alembic tests` passed.
+- `python -m pytest` passed with 19 tests.
+- `python -m mypy --no-incremental --cache-dir .mypy_cache src/plexsort` passed with
+  no issues.
+- `node --check frontend\assets\app.js` passed.
+- `node --check frontend\assets\admin.js` passed.
+- `docker compose build app` passed.
+- `docker compose up -d app` restarted the rebuilt backend.
+- Live API check for `country=France`, `min_imdb_rating=7.5`, and `sort=imdb_rating`
+  returned real enriched matches.
+- Live HTML references `assets/style.css?v=15`, `assets/app.js?v=15`, and includes
+  the new enriched filter controls.
+
 ## Known Gaps
 
 - No API integration tests exist yet.

@@ -5,14 +5,16 @@ import io
 from io import BytesIO
 from pathlib import Path
 from typing import Annotated
+from typing import cast as type_cast
 from urllib.parse import urljoin
 
 import requests
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import FileResponse, StreamingResponse
 from PIL import Image
-from sqlalchemy import Select, func, select
+from sqlalchemy import Float, Select, cast, func, select
 from sqlalchemy.orm import Session
+from sqlalchemy.sql.elements import ColumnElement
 
 from plexsort.config import Settings, get_settings
 from plexsort.db import get_db
@@ -66,6 +68,10 @@ def fetch_and_cache_poster(
     return cache
 
 
+def _omdb_text(key: str) -> ColumnElement[str]:
+    return type_cast(ColumnElement[str], PlexMovie.omdb_payload[key].as_string())
+
+
 SORT_COLUMNS = {
     "title": PlexMovie.title_sort,
     "year": PlexMovie.year,
@@ -75,6 +81,9 @@ SORT_COLUMNS = {
     "view_count": PlexMovie.view_count,
     "duration": PlexMovie.duration_ms,
     "bitrate": PlexMovie.bitrate_kbps,
+    "imdb_rating": cast(_omdb_text("imdbRating"), Float),
+    "metascore": cast(_omdb_text("Metascore"), Float),
+    "released": _omdb_text("Released"),
 }
 
 
@@ -88,6 +97,11 @@ def _filtered_movies(
     resolution: str | None,
     content_rating: str | None,
     watched: bool | None,
+    omdb_rated: str | None = None,
+    country: str | None = None,
+    language: str | None = None,
+    min_imdb_rating: float | None = None,
+    min_metascore: float | None = None,
     list_id: int | None = None,
     in_list: bool | None = None,
 ) -> Select[tuple[PlexMovie]]:
@@ -106,6 +120,16 @@ def _filtered_movies(
         statement = statement.where(PlexMovie.resolution == resolution)
     if content_rating:
         statement = statement.where(PlexMovie.content_rating == content_rating)
+    if omdb_rated:
+        statement = statement.where(_omdb_text("Rated").ilike(f"%{omdb_rated}%"))
+    if country:
+        statement = statement.where(_omdb_text("Country").ilike(f"%{country}%"))
+    if language:
+        statement = statement.where(_omdb_text("Language").ilike(f"%{language}%"))
+    if min_imdb_rating is not None:
+        statement = statement.where(cast(_omdb_text("imdbRating"), Float) >= min_imdb_rating)
+    if min_metascore is not None:
+        statement = statement.where(cast(_omdb_text("Metascore"), Float) >= min_metascore)
     if watched is True:
         statement = statement.where(PlexMovie.view_count > 0)
     if watched is False:
@@ -174,6 +198,11 @@ def list_movies(
     year_max: int | None = None,
     resolution: str | None = None,
     content_rating: str | None = None,
+    omdb_rated: str | None = None,
+    country: str | None = None,
+    language: str | None = None,
+    min_imdb_rating: Annotated[float | None, Query(ge=0, le=10)] = None,
+    min_metascore: Annotated[float | None, Query(ge=0, le=100)] = None,
     watched: bool | None = None,
     q: str | None = None,
     list_id: int | None = None,
@@ -187,6 +216,11 @@ def list_movies(
         year_max=year_max,
         resolution=resolution,
         content_rating=content_rating,
+        omdb_rated=omdb_rated,
+        country=country,
+        language=language,
+        min_imdb_rating=min_imdb_rating,
+        min_metascore=min_metascore,
         watched=watched,
         list_id=list_id,
         in_list=in_list,
@@ -375,6 +409,11 @@ def export_movies_csv(
     year_max: int | None = None,
     resolution: str | None = None,
     content_rating: str | None = None,
+    omdb_rated: str | None = None,
+    country: str | None = None,
+    language: str | None = None,
+    min_imdb_rating: float | None = None,
+    min_metascore: float | None = None,
     watched: bool | None = None,
     list_id: int | None = None,
     in_list: bool | None = None,
@@ -382,7 +421,10 @@ def export_movies_csv(
     """Current filtered view as a CSV — respects all active filters and sort order."""
     statement = _filtered_movies(
         q=q, genre=genre, year=year, year_min=year_min, year_max=year_max,
-        resolution=resolution, content_rating=content_rating, watched=watched,
+        resolution=resolution, content_rating=content_rating,
+        omdb_rated=omdb_rated, country=country, language=language,
+        min_imdb_rating=min_imdb_rating, min_metascore=min_metascore,
+        watched=watched,
         list_id=list_id, in_list=in_list,
     )
     sort_col = SORT_COLUMNS.get(sort, PlexMovie.title_sort)
