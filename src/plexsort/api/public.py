@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import csv
 import io
+from collections.abc import Callable
 from io import BytesIO
 from pathlib import Path
 from typing import Annotated
@@ -85,6 +86,139 @@ SORT_COLUMNS = {
     "metascore": cast(_omdb_text("Metascore"), Float),
     "released": _omdb_text("Released"),
 }
+
+
+ExportValue = str | int | float | None
+
+
+def _join_values(values: list[str] | None) -> str:
+    return "; ".join(values or [])
+
+
+def _duration_minutes(movie: PlexMovie) -> int | None:
+    return round(movie.duration_ms / 60000) if movie.duration_ms else None
+
+
+def _date_only(value: object) -> str | None:
+    return value.date().isoformat() if hasattr(value, "date") else None
+
+
+EXPORT_COLUMNS: dict[str, tuple[str, Callable[[PlexMovie], ExportValue]]] = {
+    "title": ("Title", lambda m: m.title),
+    "year": ("Year", lambda m: m.year),
+    "tmdb_id": ("TMDb ID", lambda m: m.tmdb_id),
+    "imdb_id": ("IMDb ID", lambda m: m.imdb_id),
+    "director": ("Director", lambda m: _join_values(m.directors)),
+    "genre": ("Genres", lambda m: _join_values(m.genres)),
+    "duration": ("Duration (min)", _duration_minutes),
+    "resolution": ("Resolution", lambda m: m.resolution),
+    "bitrate": ("Bitrate (kbps)", lambda m: m.bitrate_kbps),
+    "codec": ("Codec", lambda m: m.video_codec),
+    "rating": ("Plex Critic", lambda m: float(m.rating) if m.rating is not None else None),
+    "audience": (
+        "Plex Audience",
+        lambda m: float(m.audience_rating) if m.audience_rating is not None else None,
+    ),
+    "ratings": (
+        "Ratings",
+        lambda m: "; ".join(
+            value
+            for value in [
+                f"Plex {float(m.rating):.1f}" if m.rating is not None else "",
+                f"Audience {float(m.audience_rating):.1f}" if m.audience_rating is not None else "",
+                f"IMDb {m.omdb_imdb_rating}" if m.omdb_imdb_rating else "",
+                f"RT {m.omdb_rt_rating}" if m.omdb_rt_rating else "",
+            ]
+            if value
+        ),
+    ),
+    "watched": ("Watched", lambda m: "Yes" if m.view_count > 0 else "No"),
+    "view_count": ("View Count", lambda m: m.view_count),
+    "added": ("Added", lambda m: _date_only(m.added_at)),
+    "last_viewed": ("Last Viewed", lambda m: _date_only(m.last_viewed_at)),
+    "content_rating": ("Content Rating", lambda m: m.content_rating),
+    "studio": ("Studio", lambda m: m.studio),
+    "summary": ("Plex Summary", lambda m: m.summary),
+    "imdb_rating": ("IMDb Rating", lambda m: m.omdb_imdb_rating),
+    "metascore": ("Metascore", lambda m: m.omdb_metascore),
+    "rt_rating": ("Rotten Tomatoes", lambda m: m.omdb_rt_rating),
+    "box_office": ("Box Office", lambda m: m.omdb_box_office),
+    "awards": ("Awards", lambda m: m.omdb_awards),
+    "imdb_votes": ("IMDb Votes", lambda m: m.omdb_imdb_votes),
+    "rated": ("OMDb Rated", lambda m: m.omdb_rated),
+    "released": ("Released", lambda m: m.omdb_released),
+    "runtime": ("OMDb Runtime", lambda m: m.omdb_runtime),
+    "omdb_genre": ("OMDb Genre", lambda m: m.omdb_genre),
+    "writer": ("Writer", lambda m: m.omdb_writer),
+    "actors": ("Actors", lambda m: m.omdb_actors),
+    "plot": ("Plot", lambda m: m.omdb_plot),
+    "language": ("Language", lambda m: m.omdb_language),
+    "country": ("Country", lambda m: m.omdb_country),
+    "poster": ("OMDb Poster", lambda m: m.omdb_poster),
+}
+
+DEFAULT_EXPORT_COLUMNS = [
+    "title",
+    "year",
+    "director",
+    "genre",
+    "rating",
+    "audience",
+    "duration",
+    "resolution",
+    "bitrate",
+    "codec",
+    "watched",
+    "view_count",
+    "added",
+]
+
+FULL_EXPORT_COLUMNS = [
+    "title",
+    "year",
+    "tmdb_id",
+    "imdb_id",
+    "director",
+    "genre",
+    "content_rating",
+    "studio",
+    "summary",
+    "duration",
+    "resolution",
+    "bitrate",
+    "codec",
+    "rating",
+    "audience",
+    "watched",
+    "view_count",
+    "added",
+    "last_viewed",
+    "imdb_rating",
+    "metascore",
+    "rt_rating",
+    "box_office",
+    "awards",
+    "imdb_votes",
+    "rated",
+    "released",
+    "runtime",
+    "omdb_genre",
+    "writer",
+    "actors",
+    "plot",
+    "language",
+    "country",
+    "poster",
+]
+
+
+def _export_columns(columns: list[str] | None) -> list[str]:
+    if columns == ["all"]:
+        return FULL_EXPORT_COLUMNS
+    if not columns:
+        return DEFAULT_EXPORT_COLUMNS
+    selected = [column for column in columns if column in EXPORT_COLUMNS]
+    return selected or DEFAULT_EXPORT_COLUMNS
 
 
 def _filtered_movies(
@@ -400,6 +534,7 @@ def export_letterboxd_csv(db: Annotated[Session, Depends(get_db)]) -> StreamingR
 @router.get("/export/movies-csv")
 def export_movies_csv(
     db: Annotated[Session, Depends(get_db)],
+    columns: Annotated[list[str] | None, Query()] = None,
     sort: str = "title",
     dir: str = "asc",
     q: str | None = None,
@@ -430,25 +565,12 @@ def export_movies_csv(
     sort_col = SORT_COLUMNS.get(sort, PlexMovie.title_sort)
     statement = statement.order_by(sort_col.desc() if dir == "desc" else sort_col.asc())
     movies = list(db.scalars(statement).all())
+    export_columns = _export_columns(columns)
     buf = io.StringIO()
     writer = csv.writer(buf)
-    writer.writerow([
-        "Title", "Year", "Directors", "Genres", "Critic Rating", "Audience Rating",
-        "Duration (min)", "Resolution", "Bitrate (kbps)", "Codec",
-        "Watched", "View Count", "Added",
-    ])
+    writer.writerow([EXPORT_COLUMNS[column][0] for column in export_columns])
     for m in movies:
-        writer.writerow([
-            m.title, m.year or "",
-            "; ".join(m.directors or []),
-            "; ".join(m.genres or []),
-            m.rating or "", m.audience_rating or "",
-            round(m.duration_ms / 60000) if m.duration_ms else "",
-            m.resolution or "", m.bitrate_kbps or "", m.video_codec or "",
-            "Yes" if m.view_count > 0 else "No",
-            m.view_count,
-            m.added_at.date().isoformat() if m.added_at else "",
-        ])
+        writer.writerow([EXPORT_COLUMNS[column][1](m) or "" for column in export_columns])
     return StreamingResponse(
         iter([buf.getvalue().encode("utf-8")]),
         media_type="text/csv; charset=utf-8",

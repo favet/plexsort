@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>PlexSort</title>
-    <link rel="stylesheet" href="assets/style.css?v=15" />
+    <link rel="stylesheet" href="assets/style.css?v=16" />
   </head>
   <body data-view="public">
     <header class="topbar">
@@ -135,7 +135,8 @@
             <h1>Movies</h1>
             <div class="toolbar-sub">
               <p id="resultCount">Loading</p>
-              <a id="exportFilteredLink" class="text-btn" download="plexsort-movies.csv" href="/api/export/movies-csv">Export</a>
+              <a id="exportFilteredLink" class="text-btn" download="plexsort-movies.csv" href="/api/export/movies-csv">Export view</a>
+              <a id="exportAllLink" class="text-btn" download="plexsort-movies-all.csv" href="/api/export/movies-csv?columns=all">Export all data</a>
             </div>
           </div>
           <div class="toolbar-actions">
@@ -222,6 +223,6 @@
     </div>
 
     <datalist id="genreOptions"></datalist>
-    <script src="assets/app.js?v=15"></script>
+    <script src="assets/app.js?v=16"></script>
   </body>
 </html>

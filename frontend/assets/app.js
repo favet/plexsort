@@ -62,6 +62,7 @@ const els = {
   emptyState: document.querySelector("#emptyState"),
   resultCount: document.querySelector("#resultCount"),
   exportFilteredLink: document.querySelector("#exportFilteredLink"),
+  exportAllLink: document.querySelector("#exportAllLink"),
   pageLabel: document.querySelector("#pageLabel"),
   prevPageButton: document.querySelector("#prevPageButton"),
   nextPageButton: document.querySelector("#nextPageButton"),
@@ -259,10 +260,15 @@ function movieParams() {
   return params;
 }
 
-function buildExportUrl() {
+function buildExportUrl({ allColumns = false } = {}) {
   const params = new URLSearchParams({ sort: state.sort, dir: state.dir });
   const f = filters();
   Object.entries(f).forEach(([k, v]) => { if (v !== "") params.set(k, v); });
+  if (allColumns) {
+    params.append("columns", "all");
+  } else {
+    state.visibleColumns.forEach((column) => params.append("columns", column));
+  }
   if (state.listFilter && els.listSelect.value) {
     params.set("list_id", els.listSelect.value);
     params.set("in_list", state.listFilter === "in_list" ? "true" : "false");
@@ -598,6 +604,9 @@ function renderMovies(page) {
 
   if (els.exportFilteredLink) {
     els.exportFilteredLink.href = buildExportUrl();
+  }
+  if (els.exportAllLink) {
+    els.exportAllLink.href = buildExportUrl({ allColumns: true });
   }
 
   renderTableHeader();

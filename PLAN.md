@@ -442,7 +442,7 @@ Goal: make many columns usable on desktop through presets and user choice.
 - Persist column choices in `localStorage`.
 - Keep default table compact.
 - Add sticky title/poster behavior only if it stays smooth and readable.
-- Make CSV export support current visible columns and full enriched data.
+- [x] Make CSV export support current visible columns and full enriched data.
 
 ### Exit criteria
 

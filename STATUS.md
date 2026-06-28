@@ -369,6 +369,15 @@ Initialized local git repository on 2026-06-27.
 - `python -m pytest` passed with 5 tests.
 - `node --check frontend\assets\app.js` passed.
 - `node --check frontend\assets\admin.js` passed.
+- `docker compose build app` passed.
+- `docker compose up -d app` restarted the rebuilt backend.
+- Updated static frontend assets were copied to `C:\website\plexsort`.
+- Local `GET /health` returned `{"status":"ok"}`.
+- Local selected-column CSV export returned `Title`, `IMDb Rating`, and `Country`.
+- Caddy-facing selected-column CSV export returned real enriched rows.
+- Caddy-facing `GET /api/stats` returned 1,781 movies, 196 watched, and 2 lists.
+- Caddy-facing HTML references `assets/style.css?v=16`, `assets/app.js?v=16`, and includes
+  the `exportAllLink` markup.
 - `docker compose config` passed.
 - `docker compose build` passed.
 - `docker compose up -d` started app and database containers.
@@ -609,6 +618,28 @@ Validation:
   returned real enriched matches.
 - Live HTML references `assets/style.css?v=15`, `assets/app.js?v=15`, and includes
   the new enriched filter controls.
+
+### 2026-06-28 - Column-Aware Enriched CSV Exports
+
+Finished the export part of the desktop column phase:
+
+- `/api/export/movies-csv` now accepts a whitelisted repeated `columns` query parameter.
+- `columns=all` exports the full safe enriched movie shape, including OMDb plot, release,
+  ratings, cast/crew, country/language, and technical fields.
+- The public page's `Export view` link now exports the currently visible column picker
+  selection while preserving active filters and sort order.
+- Added an `Export all data` link for the full safe enriched dataset.
+- Raw `omdb_payload` remains internal-only and is not exported.
+
+Validation:
+
+- `python -m ruff check .` passed.
+- `python -m compileall src alembic tests` passed.
+- `python -m pytest` passed with 20 tests.
+- `python -m mypy --no-incremental --cache-dir .mypy_cache src/plexsort` passed with
+  no issues.
+- `node --check frontend\assets\app.js` passed.
+- `node --check frontend\assets\admin.js` passed.
 
 ## Known Gaps
 

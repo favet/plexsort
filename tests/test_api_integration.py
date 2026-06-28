@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import csv
+import io
 from collections.abc import Generator
 from datetime import UTC, datetime
 from typing import Any
@@ -84,11 +86,15 @@ def seed_database(db: Session) -> None:
             "Country": "United States, Australia",
             "Poster": "https://example.test/matrix.jpg",
             "imdbRating": "8.7",
+            "Metascore": "73",
             "Ratings": [
                 {"Source": "Internet Movie Database", "Value": "8.7/10"},
                 {"Source": "Rotten Tomatoes", "Value": "83%"},
             ],
         },
+        omdb_box_office="$467,231,855",
+        omdb_metascore=73,
+        omdb_rt_rating="83%",
     )
     movie_two = PlexMovie(
         plex_rating_key="m2",
@@ -185,6 +191,11 @@ def response_json(response: Any) -> Any:
     return response.json()
 
 
+def response_csv(response: Any) -> list[list[str]]:
+    assert response.status_code == 200
+    return list(csv.reader(io.StringIO(response.text)))
+
+
 def test_public_api_uses_safe_response_shapes(client: TestClient) -> None:
     assert response_json(client.get("/health")) == {"status": "ok"}
     assert response_json(client.get("/api/stats")) == {
@@ -236,6 +247,28 @@ def test_public_api_uses_safe_response_shapes(client: TestClient) -> None:
     assert enriched_filter["items"][0]["title"] == "The Matrix"
 
     assert response_json(client.get("/api/movies?sort=imdb_rating&dir=desc"))["total"] == 2
+
+
+def test_movies_csv_export_supports_visible_and_full_enriched_columns(
+    client: TestClient,
+) -> None:
+    selected = response_csv(
+        client.get(
+            "/api/export/movies-csv"
+            "?q=Matrix&columns=title&columns=imdb_rating&columns=country"
+        )
+    )
+    assert selected == [
+        ["Title", "IMDb Rating", "Country"],
+        ["The Matrix", "8.7", "United States, Australia"],
+    ]
+
+    full = response_csv(client.get("/api/export/movies-csv?q=Matrix&columns=all"))
+    headers = full[0]
+    assert "Plot" in headers
+    assert "OMDb Poster" in headers
+    assert "omdb_payload" not in headers
+    assert full[1][headers.index("Plot")] == "A hacker discovers the nature of his reality."
 
 
 def test_admin_review_search_and_patch_workflow(client: TestClient) -> None:
