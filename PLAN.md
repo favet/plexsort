@@ -26,6 +26,7 @@ As of 2026-06-27:
 - `mypy` is green after installing declared dev dependencies.
 - Plex ingestion now has pagination support plus tests proving Plex `Part file`
   paths are ignored.
+- Admin review now shows pending/reviewed counts and All/Low/None filters.
 
 ---
 
@@ -306,7 +307,7 @@ NOTE: Admin route protection is done at the Caddy level (basicauth on /admin*). 
 
 Status: endpoints exist. Long-running sync/import/match actions now queue background jobs and
 report progress through `/api/admin/jobs`. Manual review endpoints now support the
-first real unmatched queue workflow.
+first real unmatched queue workflow plus queue summary/filtering.
 
 ---
 
@@ -326,6 +327,7 @@ first real unmatched queue workflow.
 - Paste Letterboxd URL or upload CSV
 - Match review queue with Plex movie search, confirm, and skip/manual-unmatched actions
 - Job progress display for sync, import, and matching jobs
+- Review queue counts and All/Low/None filter buttons
 
 Design: match the dark aesthetic of cine.favet.net (`--bg: #0d0c18`, gold accents).
 

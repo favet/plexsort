@@ -116,3 +116,10 @@ class MatchReviewItem(BaseModel):
     reviewed: bool
     lb_entry: LetterboxdEntryPublic
     plex_movie: MoviePublic | None
+
+
+class MatchReviewSummary(BaseModel):
+    pending_total: int
+    pending_low: int
+    pending_none: int
+    reviewed_total: int

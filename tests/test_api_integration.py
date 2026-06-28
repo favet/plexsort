@@ -130,7 +130,7 @@ def seed_database(db: Session) -> None:
             Match(
                 lb_entry_id=matched_entry.id,
                 plex_movie_id=movie_one.id,
-                confidence="medium",
+                confidence="low",
                 match_method="exact_title_near_year",
                 reviewed=False,
             ),
@@ -194,7 +194,18 @@ def test_admin_review_search_and_patch_workflow(client: TestClient) -> None:
     assert isinstance(candidates[0]["id"], int)
     assert "file_path" not in candidates[0]
 
-    review_items = response_json(client.get("/api/admin/matches/review?limit=1"))
+    summary = response_json(client.get("/api/admin/matches/review/summary"))
+    assert summary == {
+        "pending_total": 2,
+        "pending_low": 1,
+        "pending_none": 1,
+        "reviewed_total": 0,
+    }
+
+    low_items = response_json(client.get("/api/admin/matches/review?confidence=low&limit=10"))
+    assert [item["confidence"] for item in low_items] == ["low"]
+
+    review_items = response_json(client.get("/api/admin/matches/review?confidence=none&limit=1"))
     assert len(review_items) == 1
     assert review_items[0]["confidence"] == "none"
     match_id = review_items[0]["match_id"]

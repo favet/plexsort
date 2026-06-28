@@ -13,11 +13,14 @@ const els = {
   uploadForm: document.querySelector("#uploadForm"),
   uploadInput: document.querySelector("#uploadInput"),
   runMatchButton: document.querySelector("#runMatchButton"),
+  reviewSummary: document.querySelector("#reviewSummary"),
+  reviewFilterButtons: document.querySelectorAll("[data-review-filter]"),
   reviewList: document.querySelector("#reviewList"),
   toast: document.querySelector("#toast"),
 };
 
 let activeJobTimer = null;
+let reviewFilter = "all";
 
 function showToast(message) {
   els.toast.textContent = message;
@@ -69,6 +72,22 @@ function renderSyncStatus(status) {
   els.syncStatus.innerHTML = rows
     .map(([label, value]) => `<div><dt>${label}</dt><dd>${escapeHtml(value)}</dd></div>`)
     .join("");
+}
+
+function renderReviewSummary(summary) {
+  els.reviewSummary.innerHTML = `
+    <strong>${escapeHtml(summary.pending_total)} pending</strong>
+    <span>${escapeHtml(summary.pending_low)} low</span>
+    <span>${escapeHtml(summary.pending_none)} unmatched</span>
+    <span>${escapeHtml(summary.reviewed_total)} reviewed</span>
+  `;
+}
+
+function renderReviewFilter() {
+  els.reviewFilterButtons.forEach((button) => {
+    const active = button.dataset.reviewFilter === reviewFilter;
+    button.setAttribute("aria-pressed", active ? "true" : "false");
+  });
 }
 
 function renderReview(items) {
@@ -154,13 +173,16 @@ async function refreshJobs() {
 }
 
 async function refresh() {
-  const [health, syncStatus, reviewItems] = await Promise.all([
+  const [health, syncStatus, reviewSummary, reviewItems] = await Promise.all([
     fetch(HEALTH_URL).then((response) => response.json()),
     apiFetch("/admin/sync/status"),
-    apiFetch("/admin/matches/review"),
+    apiFetch("/admin/matches/review/summary"),
+    apiFetch(`/admin/matches/review?confidence=${encodeURIComponent(reviewFilter)}`),
   ]);
   els.adminStatus.textContent = health.status === "ok" ? "Backend online" : "Backend unavailable";
   renderSyncStatus(syncStatus);
+  renderReviewSummary(reviewSummary);
+  renderReviewFilter();
   renderReview(reviewItems);
   await refreshJobs();
 }
@@ -303,6 +325,18 @@ function bindEvents() {
     } finally {
       setBusy(els.runMatchButton, false);
     }
+  });
+
+  els.reviewFilterButtons.forEach((button) => {
+    button.addEventListener("click", async () => {
+      reviewFilter = button.dataset.reviewFilter;
+      renderReviewFilter();
+      try {
+        await refresh();
+      } catch (error) {
+        showToast(error.message);
+      }
+    });
   });
 
   els.reviewList.addEventListener("click", async (event) => {

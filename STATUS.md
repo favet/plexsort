@@ -186,6 +186,26 @@ Hardened Plex ingestion:
 
 Rebuilt and restarted the Docker app container after this change.
 
+### 2026-06-27 - Admin Review Counts and Filters
+
+Improved review queue visibility:
+
+- Added `GET /api/admin/matches/review/summary` with pending low, pending none,
+  pending total, and reviewed counts.
+- Added `confidence=all|low|none` filter support to `GET /api/admin/matches/review`.
+- Admin matching panel now shows the review counts and segmented All/Low/None filters.
+- Updated API integration tests to cover the summary endpoint and filtered review list.
+
+Live verification after deploy:
+
+- Public unauthenticated review summary endpoint returned `401`.
+- Public authenticated review summary returned `357` pending, `0` low, `357` none,
+  `0` reviewed.
+- Public authenticated filtered review endpoint returned unmatched review items for
+  `confidence=none`.
+- Browser smoke was attempted, but the browser automation timed out while waiting for page
+  load state, so it is not counted as a passed validation checkpoint.
+
 ## Decisions Made
 
 - Use Python 3.11+ with FastAPI.
@@ -227,6 +247,7 @@ These must remain true after every checkpoint:
 | Matching engine | First pass | Title/year matching exists. TMDB deferred. |
 | Admin API | Progress-enabled | Admin mutations now queue background jobs with status records. |
 | Admin review | First pass | Search, confirm, and skip tools exist for the review queue. |
+| Admin review filters | Done, first pass | Counts and All/Low/None filters are live. |
 | API tests | Improved | Public/admin route tests now cover core response shapes and manual review. |
 | Type checking | Passing | `mypy` is green after installing dev extras. |
 | Frontend | First pass live | Tracked under `frontend/`; deployed to `C:\website\plexsort`. |
@@ -324,6 +345,17 @@ Initialized local git repository on 2026-06-27.
 - `docker compose build app` passed after Plex ingestion pagination changes.
 - `docker compose up -d app` restarted the rebuilt app container after Plex ingestion
   pagination changes.
+- `python -m ruff check .` passed after admin review filters were added.
+- `python -m compileall src alembic tests` passed after admin review filters were added.
+- `python -m pytest` passed with 13 tests after admin review filters were added.
+- `python -m mypy --no-incremental --cache-dir .mypy_cache src/plexsort` passed with
+  no issues after admin review filters were added.
+- `node --check frontend\assets\app.js` passed after admin review filters were added.
+- `node --check frontend\assets\admin.js` passed after admin review filters were added.
+- `docker compose build app` passed after admin review filter changes.
+- `docker compose up -d app` restarted the rebuilt app container after admin review
+  filter changes.
+- Updated static admin assets were copied to `C:\website\plexsort`.
 
 ## Known Gaps
 
@@ -339,5 +371,5 @@ Exit criteria:
 
 - Improve match confidence quality beyond title/year matching, likely by adding TMDB ID support
   once a TMDB API key is available.
-- Add admin review filters/counts so the 357-item queue is easier to work through.
-- Add a visible admin review count/filter bar and safer bulk workflow controls.
+- Add safer bulk workflow controls for the review queue.
+- Add browser-level admin UI verification once browser automation is responsive.

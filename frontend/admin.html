@@ -84,6 +84,14 @@
             <h2>Matching</h2>
             <button class="ghost-button" id="runMatchButton" type="button">Run</button>
           </div>
+          <div class="review-toolbar">
+            <div class="review-summary" id="reviewSummary">Loading review queue</div>
+            <div class="review-filter" aria-label="Review filter">
+              <button type="button" data-review-filter="all" aria-pressed="true">All</button>
+              <button type="button" data-review-filter="low" aria-pressed="false">Low</button>
+              <button type="button" data-review-filter="none" aria-pressed="false">None</button>
+            </div>
+          </div>
           <div class="review-list" id="reviewList"></div>
         </section>
       </section>

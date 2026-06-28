@@ -484,6 +484,49 @@ form {
   min-height: 90px;
 }
 
+.review-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+}
+
+.review-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+  color: var(--muted);
+  font-size: 0.84rem;
+}
+
+.review-summary strong {
+  color: var(--text);
+}
+
+.review-filter {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(58px, 1fr));
+  gap: 6px;
+  flex: 0 0 auto;
+}
+
+.review-filter button {
+  min-height: 32px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #0e0d19;
+  color: var(--muted);
+  padding: 6px 9px;
+}
+
+.review-filter button[aria-pressed="true"] {
+  border-color: rgba(216, 172, 76, 0.7);
+  color: var(--text);
+  background: #2a2118;
+}
+
 .job-status {
   display: grid;
   gap: 8px;
@@ -590,7 +633,8 @@ progress {
   }
 
   .table-toolbar,
-  .admin-header {
+  .admin-header,
+  .review-toolbar {
     align-items: flex-start;
     flex-direction: column;
   }

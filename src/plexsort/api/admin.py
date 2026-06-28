@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, Query, UploadFile
 from pydantic import BaseModel
@@ -21,6 +21,7 @@ from plexsort.schemas import (
     JobStatus,
     LetterboxdEntryPublic,
     MatchReviewItem,
+    MatchReviewSummary,
     MovieAdminOption,
     MoviePublic,
     SyncStatus,
@@ -208,14 +209,18 @@ def search_movies(
 @router.get("/matches/review", response_model=list[MatchReviewItem])
 def review_matches(
     db: Annotated[Session, Depends(get_db)],
+    confidence: Annotated[Literal["all", "low", "none"], Query()] = "all",
     limit: Annotated[int, Query(ge=1, le=200)] = 50,
 ) -> list[MatchReviewItem]:
+    statement = select(Match).where(
+        Match.reviewed.is_(False),
+        Match.confidence.in_(["low", "none"]),
+    )
+    if confidence != "all":
+        statement = statement.where(Match.confidence == confidence)
     matches = list(
         db.scalars(
-            select(Match)
-            .where(Match.reviewed.is_(False), Match.confidence.in_(["low", "none"]))
-            .order_by(Match.confidence.asc(), Match.matched_at.desc())
-            .limit(limit)
+            statement.order_by(Match.confidence.asc(), Match.matched_at.desc()).limit(limit)
         ).all()
     )
     return [
@@ -229,6 +234,36 @@ def review_matches(
         )
         for match in matches
     ]
+
+
+@router.get("/matches/review/summary", response_model=MatchReviewSummary)
+def review_summary(db: Annotated[Session, Depends(get_db)]) -> MatchReviewSummary:
+    pending_statement = select(func.count(Match.id)).where(
+        Match.reviewed.is_(False),
+        Match.confidence.in_(["low", "none"]),
+    )
+    return MatchReviewSummary(
+        pending_total=db.scalar(pending_statement) or 0,
+        pending_low=(
+            db.scalar(
+                select(func.count(Match.id)).where(
+                    Match.reviewed.is_(False),
+                    Match.confidence == "low",
+                )
+            )
+            or 0
+        ),
+        pending_none=(
+            db.scalar(
+                select(func.count(Match.id)).where(
+                    Match.reviewed.is_(False),
+                    Match.confidence == "none",
+                )
+            )
+            or 0
+        ),
+        reviewed_total=db.scalar(select(func.count(Match.id)).where(Match.reviewed.is_(True))) or 0,
+    )
 
 
 @router.patch("/matches/{match_id}", response_model=MatchReviewItem)
