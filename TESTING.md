@@ -40,12 +40,13 @@ For live deployment checkpoints:
 curl.exe -s http://localhost:8004/health
 curl.exe -s -H "Host: plex.favet.net" http://localhost/api/stats
 curl.exe -s -o NUL -w "%{http_code}" -H "Host: plex.favet.net" http://localhost/api/admin/jobs
+curl.exe -s -H "Host: plex.favet.net" http://localhost/api/health/metrics
 curl.exe -s -L https://plex.favet.net/api/stats
 curl.exe -s -L -o NUL -w "%{http_code}" https://plex.favet.net/api/admin/jobs
 ```
 
-Expected result: public endpoints return `200`; admin endpoints return `401`
-without Basic Auth and return data only with the admin credentials.
+Expected result: public and admin endpoints return `200`. Admin auth was removed by
+user decision on 2026-06-27.
 
 ## Checkpoint Gates
 
@@ -75,11 +76,10 @@ without Basic Auth and return data only with the admin credentials.
 ### Admin API
 
 - All admin endpoints live under `/api/admin`.
-- Caddy config protects `/admin*` and `/api/admin*`.
+- Caddy config does not protect `/admin*` or `/api/admin*`; this is intentional.
 - Mutation routes are not reachable from the public API namespace.
 - Long-running work creates job records and reports progress through `/api/admin/jobs`.
-- Manual review routes are protected and tested with both unauthenticated and
-  authenticated requests.
+- Manual review routes are publicly reachable.
 
 ### Plex Ingestion
 
@@ -121,5 +121,5 @@ without Basic Auth and return data only with the admin credentials.
 - Import or scrape one Letterboxd list.
 - Run matching.
 - Inspect public API JSON for forbidden fields.
-- Verify Caddy protects `/admin` and `/api/admin`.
+- Verify `/admin` and `/api/admin` are reachable with no auth.
 - Verify public endpoints require no auth.

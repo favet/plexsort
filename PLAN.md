@@ -20,8 +20,8 @@ As of 2026-06-27:
 - Admin long-running actions now create progress-tracked jobs.
 - Admin review has first-pass manual tools: search Plex movies, confirm a match,
   or mark an entry unmatched.
-- Public route `https://plex.favet.net` is verified live; admin routes return
-  `401` unless Basic Auth is supplied.
+- Public route `https://plex.favet.net` is verified live; admin routes are intentionally
+  open with no Basic Auth.
 - API integration tests now cover core public/admin route shapes.
 - `mypy` is green after installing declared dev dependencies.
 - Plex ingestion now has pagination support plus tests proving Plex `Part file`
@@ -29,12 +29,13 @@ As of 2026-06-27:
 - Admin review now shows pending/reviewed counts and All/Low/None filters.
 - Public mobile UI now collapses filters and renders movies as cards.
 - Public list comparison now exposes `Missing From Plex` as the main coverage gap view.
+- Public poster proxy and health metrics endpoints are live.
 
 ---
 
 ## Phase 1 — Scaffold ✅ (complete)
 
-- [x] Decisions locked: Python/FastAPI, Docker compose, own Postgres, HTTP Basic Auth in Caddy for /admin, public browse, no TMDB key yet
+- [x] Decisions locked: Python/FastAPI, Docker compose, own Postgres, public browse/admin, no TMDB key yet
 - [x] CLAUDE.md written
 - [x] Project directory created at `C:\Users\Justin\Documents\PLEXSORT\`
 - [x] Memory saved (see `C:\Users\Justin\.claude\projects\c--website-plexsort\memory\`)
@@ -84,7 +85,7 @@ And in `C:\website\plexsort\`:
 
 Frontend files are still pending; backend files are complete for the first scaffold checkpoint.
 index.html          # public browse SPA (vanilla JS)
-admin.html          # admin UI (behind Caddy basicauth)
+admin.html          # admin UI (public)
 assets/
     app.js
     style.css
@@ -259,6 +260,8 @@ All responses use Pydantic schemas that explicitly list safe fields (no file pat
   todo list.
 
 `GET /api/stats` — summary counts (total movies, total watched, lists loaded, etc.)
+`GET /api/health/metrics` — public health readout for library/match/list coverage
+`GET /api/posters/{plex_rating_key}` — public poster proxy backed by Plex API
 
 ### Public schema (safe fields only)
 ```python
@@ -295,7 +298,8 @@ compare, admin movie search, admin manual review patching, and admin job status 
 
 `src/plexsort/api/admin.py`
 
-NOTE: Admin route protection is done at the Caddy level (basicauth on /admin*). The FastAPI app itself does NOT need to re-check auth — Caddy strips unauthorized requests before they reach the app. If you later want defense-in-depth, add a middleware that checks for the `Authorization` header, but it's not required.
+NOTE: Admin routes are intentionally public. Caddy no longer applies Basic Auth to
+`/admin*` or `/api/admin*` by user decision on 2026-06-27.
 
 ### Endpoints
 
@@ -326,7 +330,7 @@ first real unmatched queue workflow plus queue summary/filtering.
 - Click any column value → add as filter (Datasette-style)
 - List selector: pick a saved Letterboxd list to show coverage overlay
 
-`admin.html` — admin panel (served at `/admin`, with `/api/admin*` also gated by Caddy basicauth)
+`admin.html` — admin panel (served at `/admin`, publicly reachable)
 - Trigger Plex sync button + last-sync timestamp
 - Paste Letterboxd URL or upload CSV
 - Match review queue with Plex movie search, confirm, and skip/manual-unmatched actions
@@ -353,7 +357,167 @@ Current real data snapshot: 1,781 Plex movies, 2 Letterboxd lists, 357 review it
 5. `docker compose run --rm app alembic upgrade head`
 
 Status: Caddy and Cloudflare Tunnel are wired. Public site is live at `https://plex.favet.net`.
-Public API is open; `/admin*` and `/api/admin*` require Basic Auth.
+Public API and admin routes are open; no Basic Auth is required.
+
+---
+
+## Phase 11 — OMDb Data Model and API 🟡 (planned)
+
+Goal: expose the full OMDb enrichment safely without spending more OMDb quota.
+
+Current state:
+
+- `omdb_payload` stores the complete OMDb response for all 1,766 movies with IMDb IDs.
+- Existing normalized columns cover only a subset: box office, awards, Metascore,
+  IMDb votes, Rotten Tomatoes rating, actors.
+- All additional fields should be derived from `omdb_payload`, not by calling OMDb again.
+
+### Backend tasks
+
+- Add first-class API fields for high-value OMDb data:
+  - `omdb_imdb_rating`
+  - `omdb_rated`
+  - `omdb_released`
+  - `omdb_runtime`
+  - `omdb_genre`
+  - `omdb_writer`
+  - `omdb_plot`
+  - `omdb_language`
+  - `omdb_country`
+  - `omdb_poster`
+  - `omdb_ratings`
+- Prefer computed response fields from `omdb_payload` unless a field needs indexing or sorting.
+- Add dedicated DB columns only for fields that need fast filtering/sorting.
+- Add tests proving public responses still exclude secrets, paths, and raw internal-only fields.
+
+### Exit criteria
+
+- `/api/movies` and `/api/movies/{plex_rating_key}` expose selected OMDb fields.
+- No OMDb API calls are required for backfill.
+- Route tests cover the new fields and safe response shape.
+- `ruff`, `compileall`, `pytest`, `mypy`, and JS syntax checks pass.
+
+---
+
+## Phase 12 — Movie Detail Experience 🟡 (planned)
+
+Goal: make the new data useful without making the browse table unreadable.
+
+### UI tasks
+
+- Add a movie detail drawer or modal opened from a movie row/card.
+- Group fields into compact sections:
+  - Overview: plot, runtime, released, rated, country, language
+  - Ratings: Plex ratings, IMDb rating/votes, Metascore, Rotten Tomatoes
+  - Cast/Crew: directors, writer, actors
+  - Technical: resolution, bitrate, codec, duration, watched status
+  - Lists: selected Letterboxd list coverage/match status
+- Keep long text out of table cells: plot, awards, actors, writer.
+- Render missing values quietly; do not show noisy `N/A`.
+
+### Exit criteria
+
+- Desktop and mobile can inspect all important movie data from one interaction.
+- No horizontal overflow on mobile.
+- Detail view works for movies with partial OMDb data and for the 15 movies without IMDb IDs.
+
+---
+
+## Phase 13 — Desktop Column System 🟡 (planned)
+
+Goal: make many columns usable on desktop through presets and user choice.
+
+### Column presets
+
+- `Library`: poster, title, year, runtime, resolution, watched, added
+- `Ratings`: title, year, Plex rating, audience rating, IMDb, Metascore, Rotten Tomatoes
+- `Release`: title, year, released, rated, country, language, studio
+- `Technical`: title, resolution, bitrate, codec, duration, added
+- `People`: title, director, writer, actors
+- `OMDb`: title plus key OMDb fields
+
+### UI tasks
+
+- Add a column picker with preset buttons and checkboxes.
+- Persist column choices in `localStorage`.
+- Keep default table compact.
+- Add sticky title/poster behavior only if it stays smooth and readable.
+- Make CSV export support current visible columns and full enriched data.
+
+### Exit criteria
+
+- Desktop table can show wide data sets without overwhelming the default view.
+- Column choices survive reload.
+- Export reflects the chosen view.
+
+---
+
+## Phase 14 — Mobile Browse Redesign 🟡 (planned)
+
+Goal: keep mobile fast and readable with enriched data.
+
+### Mobile tasks
+
+- Keep mobile movie cards compact:
+  - poster
+  - title/year
+  - one or two rating chips
+  - resolution/watched indicator
+- Move detailed OMDb data into the detail drawer/page.
+- Replace dense sidebar controls with collapsible filter groups and active filter chips.
+- Avoid horizontal tables on mobile entirely.
+- Verify at common widths: 390px, 430px, 768px.
+
+### Exit criteria
+
+- Mobile has no page-level horizontal overflow.
+- Cards remain scannable with real data.
+- All enriched fields are reachable from the detail view.
+
+---
+
+## Phase 15 — Advanced Filters and Sorting 🟡 (planned)
+
+Goal: let the enriched data answer real collection questions.
+
+### Filter/sort additions
+
+- Sort by IMDb rating, Metascore, Rotten Tomatoes, box office, release date, runtime, bitrate.
+- Filter by rated/content rating, country, language, decade/year range, minimum ratings,
+  has box office, has poster, and missing OMDb field.
+- Keep every sortable/filterable field whitelisted in backend code.
+
+### Exit criteria
+
+- Backend tests cover new sort/filter whitelists.
+- Frontend filters are ergonomic on desktop and mobile.
+- No arbitrary SQL or raw user-controlled sort fields.
+
+---
+
+## Phase 16 — Polish, Verification, and Deployment 🟡 (planned)
+
+Goal: ship the enriched PlexSort experience cleanly.
+
+### Verification tasks
+
+- Run full local checkpoint:
+  - `python -m ruff check .`
+  - `python -m compileall src alembic tests`
+  - `python -m pytest`
+  - `python -m mypy --no-incremental --cache-dir .mypy_cache src/plexsort`
+  - `node --check frontend\assets\app.js`
+  - `node --check frontend\assets\admin.js`
+- Browser smoke test desktop public browse, mobile public browse, movie detail drawer,
+  column presets, and exports.
+- Deploy backend container and copy static frontend to `C:\website\plexsort`.
+- Update `STATUS.md` with validation and live counts.
+
+### Exit criteria
+
+- Site is live with enriched details.
+- No secret/path leakage in API responses or static frontend.
+- Mobile and desktop layouts are verified with real data.
 
 ---
 

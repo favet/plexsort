@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import concurrent.futures
 from collections.abc import Callable
 from typing import Annotated, Literal
 
@@ -8,10 +9,12 @@ from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from plexsort.api.public import POSTER_CACHE_DIR, fetch_and_cache_poster
 from plexsort.config import Settings, get_settings
 from plexsort.db import SessionLocal, get_db
 from plexsort.ingest.lb_csv import import_letterboxd_csv
 from plexsort.ingest.lb_scrape import scrape_letterboxd_list
+from plexsort.ingest.omdb import run_omdb_enrichment
 from plexsort.ingest.plex import sync_plex_movies
 from plexsort.jobs import create_job, list_recent_jobs, make_progress, update_job
 from plexsort.match.engine import run_full_match
@@ -264,6 +267,95 @@ def review_summary(db: Annotated[Session, Depends(get_db)]) -> MatchReviewSummar
         ),
         reviewed_total=db.scalar(select(func.count(Match.id)).where(Match.reviewed.is_(True))) or 0,
     )
+
+
+@router.post("/posters/optimize", response_model=JobAccepted)
+def optimize_posters(
+    background_tasks: BackgroundTasks,
+    db: Annotated[Session, Depends(get_db)],
+    settings: Annotated[Settings, Depends(get_settings)],
+    clear: bool = False,
+) -> JobAccepted:
+    if not settings.plex_url or not settings.plex_token:
+        raise HTTPException(status_code=503, detail="Plex not configured")
+    movies = list(db.scalars(select(PlexMovie).where(PlexMovie.thumb_url.is_not(None))).all())
+    job = create_job(db, "poster_optimize", f"Queued poster optimization ({len(movies)} movies)")
+    movie_data = [(m.thumb_url, m.plex_rating_key) for m in movies if m.thumb_url is not None]
+    plex_url = settings.plex_url
+    plex_token = settings.plex_token
+
+    def work(job_db: Session) -> dict[str, object]:
+        if clear:
+            for f in POSTER_CACHE_DIR.glob("*.jpg"):
+                f.unlink(missing_ok=True)
+        total = len(movie_data)
+        update_job(
+            job_db, job.id,
+            status="running", phase="fetching",
+            message=f"Fetching {total} posters", current=0, total=total,
+        )
+
+        def fetch_one(args: tuple[str, str]) -> bool:
+            thumb_url, rating_key = args
+            return fetch_and_cache_poster(thumb_url, rating_key, plex_url, plex_token) is not None
+
+        cached = 0
+        errors = 0
+        with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
+            futures = {executor.submit(fetch_one, args): args for args in movie_data}
+            for future in concurrent.futures.as_completed(futures):
+                if future.result():
+                    cached += 1
+                else:
+                    errors += 1
+                n = cached + errors
+                if n % 30 == 0:
+                    update_job(job_db, job.id, current=n, total=total)
+        return {"cached": cached, "errors": errors, "total": total}
+
+    background_tasks.add_task(run_background_job, job.id, work)
+    return JobAccepted(job_id=job.id, status=job.status, message=job.message)
+
+
+@router.post("/omdb/enrich", response_model=JobAccepted)
+def enrich_omdb(
+    background_tasks: BackgroundTasks,
+    db: Annotated[Session, Depends(get_db)],
+    settings: Annotated[Settings, Depends(get_settings)],
+    batch_size: Annotated[int, Query(ge=1, le=1000)] = 200,
+) -> JobAccepted:
+    if not settings.omdb_api_key:
+        raise HTTPException(status_code=503, detail="OMDB_API_KEY not configured")
+    api_key = settings.omdb_api_key
+    job = create_job(db, "omdb_enrich", f"Queued OMDB enrichment (batch {batch_size})")
+
+    def work(job_db: Session) -> dict[str, object]:
+        return run_omdb_enrichment(
+            job_db, api_key, make_progress(job_db, job.id), batch_size=batch_size
+        )
+
+    background_tasks.add_task(run_background_job, job.id, work)
+    return JobAccepted(job_id=job.id, status=job.status, message=job.message)
+
+
+@router.get("/omdb/status")
+def omdb_status(db: Annotated[Session, Depends(get_db)]) -> dict[str, int]:
+    from sqlalchemy import func
+    total = db.scalar(select(func.count(PlexMovie.id)).where(PlexMovie.imdb_id.is_not(None))) or 0
+    enriched = db.scalar(
+        select(func.count(PlexMovie.id)).where(PlexMovie.omdb_payload.is_not(None))
+    ) or 0
+    skipped = db.scalar(
+        select(func.count(PlexMovie.id))
+        .where(PlexMovie.imdb_id.is_not(None))
+        .where(PlexMovie.omdb_error.is_not(None))
+    ) or 0
+    return {
+        "total_with_imdb": total,
+        "enriched": enriched,
+        "skipped": skipped,
+        "remaining": total - enriched - skipped,
+    }
 
 
 @router.patch("/matches/{match_id}", response_model=MatchReviewItem)

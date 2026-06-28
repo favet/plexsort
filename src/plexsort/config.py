@@ -14,6 +14,7 @@ class Settings(BaseSettings):
         default="postgresql://plexsort:plexsort@localhost:5432/plexsort",
         alias="DATABASE_URL",
     )
+    omdb_api_key: str = Field(default="", alias="OMDB_API_KEY")
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 

@@ -8,6 +8,8 @@ services:
       DATABASE_URL: postgresql://plexsort:plexsort@db:5432/plexsort
     ports:
       - "8004:8004"
+    volumes:
+      - plexsort_poster_cache:/app/poster_cache
     depends_on:
       - db
 
@@ -22,3 +24,4 @@ services:
 
 volumes:
   plexsort_pgdata:
+  plexsort_poster_cache:

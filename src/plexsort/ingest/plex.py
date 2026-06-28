@@ -83,6 +83,7 @@ def movie_from_video(video: ElementTree.Element, synced_at: datetime) -> dict[st
         "genres": _text_list(video, "Genre"),
         "directors": _text_list(video, "Director"),
         "duration_ms": int(video.attrib["duration"]) if video.attrib.get("duration") else None,
+        "bitrate_kbps": int(rb) if (rb := _first_media_attr(video, "bitrate")) else None,
         "resolution": _first_media_attr(video, "videoResolution"),
         "video_codec": _first_media_attr(video, "videoCodec"),
         "audience_rating": video.attrib.get("audienceRating"),

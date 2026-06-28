@@ -43,11 +43,7 @@ Follows the same convention as cinemagic and wordle-solver on this host:
 **Caddy block to add** (`C:\Users\Justin\.cloudflared\Caddyfile`):
 ```
 http://plex.favet.net {
-    @admin path /admin* /api/admin*
-    basicauth @admin {
-        # bcrypt hash of admin password goes here
-        justin <BCRYPT_HASH>
-    }
+    rewrite /admin /admin.html
     reverse_proxy /api/* localhost:8004
     root * C:\website\plexsort
     file_server
@@ -72,8 +68,8 @@ cloudflared tunnel route dns favet-tunnel plex.favet.net
 ## Auth
 
 - **Public browse/API**: no auth — fully open
-- **Admin routes (`/admin*`, `/api/admin*`)**: HTTP Basic Auth via Caddy
-- Generate bcrypt hash: `caddy hash-password` — user supplies password, paste hash into Caddyfile
+- **Admin routes (`/admin*`, `/api/admin*`)**: no auth — fully open by user decision on 2026-06-27
+- Keep Plex token and server filesystem paths out of responses even though the site is open.
 
 ## Postgres
 

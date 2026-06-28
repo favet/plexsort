@@ -1,9 +1,12 @@
 const API_BASE = window.location.port === "8014" ? "http://localhost:8004/api" : "/api";
-const HEALTH_URL = window.location.port === "8014" ? "http://localhost:8004/health" : "/health";
 
 const els = {
   adminStatus: document.querySelector("#adminStatus"),
   syncPlexButton: document.querySelector("#syncPlexButton"),
+  optimizePostersButton: document.querySelector("#optimizePostersButton"),
+  reoptimizePostersButton: document.querySelector("#reoptimizePostersButton"),
+  enrichOmdbButton: document.querySelector("#enrichOmdbButton"),
+  omdbStatus: document.querySelector("#omdbStatus"),
   syncStatus: document.querySelector("#syncStatus"),
   activeJob: document.querySelector("#activeJob"),
   jobList: document.querySelector("#jobList"),
@@ -172,6 +175,25 @@ async function refreshJobs() {
   return active;
 }
 
+async function refreshOmdbStatus() {
+  try {
+    const s = await apiFetch("/admin/omdb/status");
+    els.omdbStatus.innerHTML = [
+      ["With IMDB ID", s.total_with_imdb],
+      ["Enriched", s.enriched],
+      ["Skipped", s.skipped || 0],
+      ["Remaining", s.remaining],
+    ]
+      .map(([l, v]) => `<div><dt>${escapeHtml(l)}</dt><dd>${escapeHtml(String(v))}</dd></div>`)
+      .join("");
+    if (els.enrichOmdbButton) {
+      els.enrichOmdbButton.textContent =
+        s.remaining === 0 ? "All enriched" : `Enrich Next Batch (${Math.min(200, s.remaining)})`;
+      els.enrichOmdbButton.disabled = s.remaining === 0;
+    }
+  } catch { /* non-critical */ }
+}
+
 async function refresh() {
   const [health, syncStatus, reviewSummary, reviewItems] = await Promise.all([
     fetch(HEALTH_URL).then((response) => response.json()),
@@ -184,7 +206,7 @@ async function refresh() {
   renderReviewSummary(reviewSummary);
   renderReviewFilter();
   renderReview(reviewItems);
-  await refreshJobs();
+  await Promise.all([refreshJobs(), refreshOmdbStatus()]);
 }
 
 function setBusy(button, busy) {
@@ -242,7 +264,14 @@ async function trackJob(jobId) {
     if (job.status === "completed" || job.status === "failed") {
       window.clearInterval(activeJobTimer);
       activeJobTimer = null;
-      showToast(job.status === "completed" ? "Job complete" : `Job failed: ${job.error || ""}`);
+      const rateLimited = job.result && job.result.rate_limited;
+      showToast(
+        rateLimited
+          ? "OMDB request limit reached; try again after the quota resets"
+          : job.status === "completed"
+            ? "Job complete"
+            : `Job failed: ${job.error || ""}`,
+      );
       await refresh();
     }
   }
@@ -311,6 +340,46 @@ function bindEvents() {
       showToast(error.message);
     } finally {
       setBusy(button, false);
+    }
+  });
+
+  els.optimizePostersButton.addEventListener("click", async () => {
+    setBusy(els.optimizePostersButton, true);
+    try {
+      const job = await apiFetch("/admin/posters/optimize", { method: "POST" });
+      showToast("Poster cache fill queued");
+      await trackJob(job.job_id);
+    } catch (error) {
+      showToast(error.message);
+    } finally {
+      setBusy(els.optimizePostersButton, false);
+    }
+  });
+
+  els.reoptimizePostersButton.addEventListener("click", async () => {
+    setBusy(els.reoptimizePostersButton, true);
+    try {
+      const job = await apiFetch("/admin/posters/optimize?clear=true", { method: "POST" });
+      showToast("Re-optimizing all posters — clearing old cache");
+      await trackJob(job.job_id);
+    } catch (error) {
+      showToast(error.message);
+    } finally {
+      setBusy(els.reoptimizePostersButton, false);
+    }
+  });
+
+  els.enrichOmdbButton.addEventListener("click", async () => {
+    setBusy(els.enrichOmdbButton, true);
+    try {
+      const job = await apiFetch("/admin/omdb/enrich", { method: "POST" });
+      showToast("OMDB enrichment queued");
+      await trackJob(job.job_id);
+      await refreshOmdbStatus();
+    } catch (error) {
+      showToast(error.message);
+    } finally {
+      setBusy(els.enrichOmdbButton, false);
     }
   });
 

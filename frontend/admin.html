@@ -4,13 +4,12 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>PlexSort Admin</title>
-    <link rel="stylesheet" href="assets/style.css" />
+    <link rel="stylesheet" href="assets/style.css?v=12" />
   </head>
   <body data-view="admin">
     <header class="topbar">
       <a class="brand" href="/">
-        <span class="brand-mark" aria-hidden="true"></span>
-        <span>PlexSort</span>
+        <span class="brand-name">PlexSort</span>
       </a>
       <nav class="nav-actions" aria-label="Primary">
         <a href="/">Movies</a>
@@ -36,6 +35,10 @@
             <div><dt>Movies</dt><dd>--</dd></div>
             <div><dt>Error</dt><dd>--</dd></div>
           </dl>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="ghost-button" id="optimizePostersButton" type="button">Fill poster cache</button>
+            <button class="ghost-button" id="reoptimizePostersButton" type="button">Re-optimize All</button>
+          </div>
         </section>
 
         <section class="tool-panel">
@@ -81,6 +84,19 @@
 
         <section class="tool-panel">
           <div class="panel-title">
+            <h2>OMDB Enrichment</h2>
+          </div>
+          <dl class="status-list" id="omdbStatus">
+            <div><dt>With IMDB ID</dt><dd>--</dd></div>
+            <div><dt>Enriched</dt><dd>--</dd></div>
+            <div><dt>Skipped</dt><dd>--</dd></div>
+            <div><dt>Remaining</dt><dd>--</dd></div>
+          </dl>
+          <button class="ghost-button" id="enrichOmdbButton" type="button">Enrich Next Batch (200)</button>
+        </section>
+
+        <section class="tool-panel">
+          <div class="panel-title">
             <h2>Matching</h2>
             <button class="ghost-button" id="runMatchButton" type="button">Run</button>
           </div>
@@ -98,6 +114,6 @@
     </main>
 
     <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
-    <script src="assets/admin.js"></script>
+    <script src="assets/admin.js?v=6"></script>
   </body>
 </html>

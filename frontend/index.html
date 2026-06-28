@@ -4,27 +4,29 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>PlexSort</title>
-    <link rel="stylesheet" href="assets/style.css" />
+    <link rel="stylesheet" href="assets/style.css?v=13" />
   </head>
   <body data-view="public">
     <header class="topbar">
       <a class="brand" href="/">
-        <span class="brand-mark" aria-hidden="true"></span>
-        <span>PlexSort</span>
+        <span class="brand-name">PlexSort</span>
+        <span class="brand-count" id="totalMovies"></span>
       </a>
       <nav class="nav-actions" aria-label="Primary">
+        <button class="icon-button sidebar-toggle-btn" id="sidebarToggleButton" type="button" aria-label="Toggle filters" aria-expanded="false">&#9776;</button>
         <a href="/admin.html">Admin</a>
+        <button class="icon-button settings-button" id="settingsButton" type="button" title="Health metrics">&#9881;</button>
       </nav>
     </header>
 
     <main class="app-shell">
-      <aside class="sidebar" aria-label="Movie filters">
-        <section class="tool-panel filter-panel" data-collapsed="false">
-          <div class="panel-title">
-            <h2>Filters</h2>
-            <div class="panel-actions">
-              <button class="ghost-button" id="toggleFiltersButton" type="button">Hide</button>
-              <button class="ghost-button" id="clearFiltersButton" type="button">Clear</button>
+      <aside class="sidebar" id="sidebar" aria-label="Movie filters">
+        <section class="sidebar-section filter-panel" data-collapsed="false">
+          <div class="section-header">
+            <span class="section-label">Filters</span>
+            <div class="section-actions">
+              <button class="text-btn" id="toggleFiltersButton" type="button">Hide</button>
+              <button class="text-btn" id="clearFiltersButton" type="button">Clear</button>
             </div>
           </div>
 
@@ -47,7 +49,7 @@
 
             <label>
               Genre
-              <input id="genreInput" type="text" autocomplete="off" />
+              <input id="genreInput" type="text" list="genreOptions" autocomplete="off" />
             </label>
 
             <label>
@@ -57,6 +59,7 @@
                 <option value="4k">4K</option>
                 <option value="1080">1080p</option>
                 <option value="720">720p</option>
+                <option value="480">480p</option>
                 <option value="sd">SD</option>
               </select>
             </label>
@@ -75,9 +78,9 @@
           </div>
         </section>
 
-        <section class="tool-panel">
-          <div class="panel-title">
-            <h2>Letterboxd</h2>
+        <section class="sidebar-section">
+          <div class="section-header">
+            <span class="section-label">Letterboxd</span>
           </div>
           <label>
             List
@@ -87,49 +90,64 @@
           </label>
           <dl class="coverage-list" id="coverageSummary">
             <div><dt>Coverage</dt><dd>--</dd></div>
-            <div><dt>In both</dt><dd>--</dd></div>
-            <div><dt>Missing</dt><dd>--</dd></div>
+            <div><dt>In Plex</dt><dd>--</dd></div>
+            <div><dt>Missing from Plex</dt><dd>--</dd></div>
+            <div><dt>Not in list</dt><dd>--</dd></div>
           </dl>
+          <div class="export-links" id="exportLinks" hidden>
+            <a id="diffCsvLink" class="text-btn" download>Download update CSV</a>
+          </div>
+          <div class="export-links">
+            <a class="text-btn" href="/api/export/letterboxd-csv" download="plexsort-library.csv">Export full library CSV</a>
+          </div>
         </section>
       </aside>
 
       <section class="workspace" aria-label="Plex movie library">
-        <section class="metric-strip" id="statsStrip" aria-label="Library stats">
-          <div><span>Total</span><strong>--</strong></div>
-          <div><span>Watched</span><strong>--</strong></div>
-          <div><span>Lists</span><strong>--</strong></div>
-        </section>
-
-        <section class="missing-panel" id="missingPanel" hidden>
-          <div class="panel-title">
-            <div>
-              <h2>Missing From Plex</h2>
-              <p id="missingSummary">Select a Letterboxd list to see gaps.</p>
-            </div>
-          </div>
-          <div class="missing-list" id="missingList"></div>
-        </section>
-
         <div class="table-toolbar">
           <div>
             <h1>Movies</h1>
-            <p id="resultCount">Loading</p>
+            <div class="toolbar-sub">
+              <p id="resultCount">Loading</p>
+              <a id="exportFilteredLink" class="text-btn" download="plexsort-movies.csv" href="/api/export/movies-csv">Export</a>
+            </div>
           </div>
           <div class="toolbar-actions">
-            <button class="icon-button" id="prevPageButton" type="button" title="Previous page">‹</button>
+            <select id="sortSelect" class="sort-select" title="Sort by">
+              <option value="title">Title</option>
+              <option value="year">Year</option>
+              <option value="duration">Duration</option>
+              <option value="rating">Critic rating</option>
+              <option value="audience_rating">Audience rating</option>
+              <option value="bitrate">Bitrate</option>
+              <option value="added_at">Date added</option>
+              <option value="view_count">View count</option>
+            </select>
+            <button class="icon-button" id="sortDirButton" type="button" title="Ascending — click to reverse">↑</button>
+            <span class="toolbar-sep" aria-hidden="true"></span>
+            <select id="perPageSelect" class="per-page-select" title="Rows per page">
+              <option value="25">25</option>
+              <option value="50" selected>50</option>
+              <option value="100">100</option>
+            </select>
+            <span class="toolbar-sep" aria-hidden="true"></span>
+            <button class="icon-button" id="prevPageButton" type="button" title="Previous page">&#8249;</button>
             <span id="pageLabel">1</span>
-            <button class="icon-button" id="nextPageButton" type="button" title="Next page">›</button>
+            <button class="icon-button" id="nextPageButton" type="button" title="Next page">&#8250;</button>
           </div>
         </div>
 
-        <div class="table-frame">
+        <div class="active-filters" id="activeFilters" hidden></div>
+
+        <div class="table-frame" id="tableFrame">
           <table>
             <thead>
               <tr>
                 <th><button data-sort="title" type="button">Title</button></th>
                 <th><button data-sort="year" type="button">Year</button></th>
-                <th>Genres</th>
-                <th><button data-sort="rating" type="button">Rating</button></th>
+                <th><button data-sort="duration" type="button">Duration</button></th>
+                <th><button data-sort="rating" type="button">Ratings</button></th>
+                <th><button data-sort="bitrate" type="button">Bitrate</button></th>
                 <th>Resolution</th>
                 <th>Watched</th>
               </tr>
@@ -137,17 +155,46 @@
             <tbody id="moviesBody"></tbody>
           </table>
           <div class="empty-state" id="emptyState" hidden>
-            <div class="poster-stack" aria-hidden="true">
-              <span></span><span></span><span></span>
-            </div>
             <strong>No movies found</strong>
-            <span>Sync Plex from the admin page or adjust filters.</span>
+            <span>Sync Plex from the admin page or adjust your filters.</span>
           </div>
+        </div>
+
+        <div class="missing-view" id="missingView" hidden>
+          <div class="missing-view-header">
+            <strong id="missingViewTitle"></strong>
+            <button class="text-btn" id="closeMissingViewButton" type="button">← All films</button>
+          </div>
+          <div id="missingList"></div>
         </div>
       </section>
     </main>
 
+    <div class="settings-panel" id="settingsPanel" hidden>
+      <div class="panel-title">
+        <div>
+          <h2>Health</h2>
+          <p>Library and matching status</p>
+        </div>
+        <button class="ghost-button" id="closeSettingsButton" type="button">Close</button>
+      </div>
+      <div class="health-grid" id="healthGrid"></div>
+      <div class="health-lists" id="healthLists"></div>
+    </div>
+
     <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
-    <script src="assets/app.js"></script>
+
+    <div class="movie-detail" id="movieDetail" role="dialog" aria-modal="true" aria-labelledby="detailTitle" hidden>
+      <div class="movie-detail-backdrop" id="movieDetailBackdrop"></div>
+      <div class="movie-detail-panel">
+        <div class="movie-detail-header">
+          <button class="icon-button" id="closeMovieDetailButton" type="button" aria-label="Close">✕</button>
+        </div>
+        <div id="movieDetailContent"></div>
+      </div>
+    </div>
+
+    <datalist id="genreOptions"></datalist>
+    <script src="assets/app.js?v=13"></script>
   </body>
 </html>

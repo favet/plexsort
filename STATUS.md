@@ -231,13 +231,70 @@ Validation:
 - Browser/mobile automation was attempted again, but the in-app browser timed out and reset,
   so visual verification is still not counted as passed.
 
+### 2026-06-27 - Posters, Health Metrics, and Open Admin
+
+Added public enrichment/readout features:
+
+- `GET /api/posters/{plex_rating_key}` proxies Plex poster images through the backend.
+  The Plex token is used server-side only and is not sent to the browser.
+- Public movie rows now render Plex posters when `thumb_url` is present.
+- `GET /api/health/metrics` returns library counts, match counts, match rate,
+  confidence buckets, review queue counts, and per-list coverage.
+- Public top-right gear opens a health metrics readout.
+- Removed Caddy Basic Auth for `/admin*` and `/api/admin*` by user decision. The site,
+  admin UI, and admin APIs are intentionally fully public.
+
+Current live health metrics after deployment:
+
+- Movies: 1,781
+- Watched: 196
+- Letterboxd entries: 2,186
+- Matched entries: 1,829
+- Unmatched entries: 357
+- Match rate: 83.67%
+- Confidence buckets: 0 high, 1,829 medium, 0 low, 357 none
+- Pending review: 357
+- Reviewed matches: 0
+- `1 Million Club`: 489 in Plex, 291 missing, 62.69% coverage
+- `Movies on Plex`: 1,340 in Plex, 66 missing, 95.31% coverage
+
+Data provenance notes:
+
+- Genres come from Plex API `Genre` tags collected during Plex sync.
+- Posters come from Plex `thumb` paths, proxied via the backend.
+- Best next enrichment path is TMDB: stable external IDs, posters/backdrops if desired,
+  cast/crew, release dates, runtime normalization, and better matching.
+
+### 2026-06-28 - OMDb Quota Handling
+
+Diagnosed OMDb enrichment appearing stuck at 856 enriched movies:
+
+- Live OMDb response for the next queued movie returned `Request limit reached!`.
+- The existing enrichment job treated every failed OMDb response as a normal movie failure
+  and did not record attempts, so repeated jobs retried the same first batch.
+- Added Alembic revision `005_omdb_attempts` with `omdb_checked_at` and `omdb_error`.
+- Permanent per-movie OMDb misses are now skipped so they do not pin the queue.
+- OMDb request-limit responses now stop the batch without marking movies as failed or
+  skipped, so the queue remains retryable after the quota resets.
+- Admin OMDb status now reports `skipped` separately from `enriched` and `remaining`.
+- Admin job toast now says when the OMDb request limit is reached.
+
+Live state after deployment:
+
+- With IMDb ID: 1,766
+- Enriched: 856
+- Skipped: 0
+- Remaining: 910
+- A one-item live enrichment verification returned `rate_limited: true`, `failed: 0`,
+  `skipped: 0`, and left remaining at 910.
+
 ## Decisions Made
 
 - Use Python 3.11+ with FastAPI.
 - Use SQLAlchemy 2.x and Alembic.
 - Use a dedicated Postgres container for PlexSort.
 - Do not expose Postgres to the host.
-- Use Caddy HTTP Basic Auth for `/admin*` and `/api/admin*`.
+- Keep public and admin surfaces open without Caddy auth by user decision on 2026-06-27.
 - Keep public browse/API open.
 - Store secrets only in `.env`; never commit `.env`.
 - Ingest Plex through the Plex HTTP API only.
@@ -255,7 +312,7 @@ These must remain true after every checkpoint:
 - Public API responses must not include internal hostnames.
 - Public routes must not expose arbitrary SQL or arbitrary model fields.
 - Admin mutation routes must live under `/api/admin`.
-- Caddy must protect both `/admin*` and `/api/admin*` before public deployment.
+- Caddy intentionally does not protect `/admin*` or `/api/admin*`.
 - Plex token must never appear in source control, logs, frontend code, or public responses.
 
 ## Implementation Status
@@ -275,6 +332,9 @@ These must remain true after every checkpoint:
 | Admin review filters | Done, first pass | Counts and All/Low/None filters are live. |
 | Public mobile UI | Improved | Filters collapse; movie rows become cards; stats stay compact. |
 | Missing coverage view | Done, first pass | Public UI shows Letterboxd titles missing from Plex. |
+| Poster proxy | Done, first pass | Public proxy serves Plex posters without exposing token. |
+| Health metrics | Done, first pass | Gear readout uses `/api/health/metrics`. |
+| Auth | Open | Public and admin routes intentionally require no auth. |
 | API tests | Improved | Public/admin route tests now cover core response shapes and manual review. |
 | Type checking | Passing | `mypy` is green after installing dev extras. |
 | Frontend | First pass live | Tracked under `frontend/`; deployed to `C:\website\plexsort`. |
@@ -392,6 +452,99 @@ Initialized local git repository on 2026-06-27.
 - `node --check frontend\assets\admin.js` passed after the mobile public UI changes.
 - Public `https://plex.favet.net/` returned `200` after the mobile public UI changes.
 - Public compare checks returned the current missing counts for both imported lists.
+- `python -m ruff check .` passed after poster/health/open-admin changes.
+- `python -m compileall src alembic tests` passed after poster/health/open-admin changes.
+- `python -m pytest` passed with 15 tests after poster/health/open-admin changes.
+- `python -m mypy --no-incremental --cache-dir .mypy_cache src/plexsort` passed with
+  no issues after poster/health/open-admin changes.
+- `node --check frontend\assets\app.js` passed after poster/health/open-admin changes.
+- `node --check frontend\assets\admin.js` passed after poster/health/open-admin changes.
+- `docker compose build app` passed after poster/health/open-admin changes.
+- `docker compose up -d app` restarted the rebuilt app container.
+- `caddy validate --config C:\Users\Justin\.cloudflared\Caddyfile` passed.
+- `caddy reload --config C:\Users\Justin\.cloudflared\Caddyfile` passed.
+- Public `https://plex.favet.net/api/health/metrics` returned live health metrics.
+- Public `https://plex.favet.net/api/posters/132` returned `200 image/jpeg`.
+- Public `https://plex.favet.net/admin` returned `200` with no credentials.
+- Public `https://plex.favet.net/api/admin/jobs` returned `200` with no credentials.
+- `python -m ruff check .` passed after OMDb quota handling changes.
+- `python -m compileall src alembic tests` passed after OMDb quota handling changes.
+- `python -m pytest` passed with 18 tests after OMDb quota handling changes.
+- `python -m mypy --no-incremental --cache-dir .mypy_cache src/plexsort` passed with
+  no issues after OMDb quota handling changes.
+- `node --check frontend\assets\admin.js` passed after OMDb quota handling changes.
+- `node --check frontend\assets\app.js` passed after OMDb quota handling changes.
+- `docker compose build app` passed after OMDb quota handling changes.
+- `docker compose run --rm app alembic upgrade head` applied `005_omdb_attempts`.
+- `docker compose up -d app` restarted the rebuilt app container.
+- Local `GET /health` returned `{"status":"ok"}` after OMDb quota handling changes.
+- Local `GET /api/admin/omdb/status` returned 1,766 with IMDb IDs, 856 enriched,
+  0 skipped, and 910 remaining.
+- Local one-item OMDb enrichment job returned `rate_limited: true` with no failed or
+  skipped movies.
+
+### 2026-06-28 - OMDb Full Payload Backfill
+
+Added full OMDb response preservation:
+
+- Added Alembic revision `006_omdb_payload` with `plex_movies.omdb_payload` as JSONB.
+- OMDb enrichment now stores the complete response payload for every successful lookup,
+  while continuing to populate the existing normalized display columns.
+- OMDb status now treats a movie as enriched only when the full payload is present.
+
+Live backfill result with the current OMDb key:
+
+- Full payloads saved: 847
+- Remaining full payloads: 919
+- Skipped/errors: 0
+- Job stopped on `rate_limited: true`; no remaining movies were marked failed or skipped.
+
+Follow-up with final OMDb key:
+
+- Initially received `Invalid API key!` for the remaining 919 rows; this exposed that
+  key-level OMDb errors also needed to stop the batch rather than mark movie rows failed.
+- Added fatal key-error handling and cleared the false `Invalid API key!` skips.
+- After the key became usable, a one-item verification saved 1 payload.
+- Final batch saved the remaining 918 payloads.
+- Final OMDb full-payload status: 1,766 with IMDb IDs, 1,766 full payloads saved,
+  0 skipped, 0 remaining.
+
+### 2026-06-28 - OMDb Fields Exposed and Detail Drawer
+
+Started the enriched data UI phase:
+
+- Added safe computed public fields from `omdb_payload` without exposing the raw payload:
+  - IMDb rating
+  - rated
+  - released
+  - runtime
+  - genre
+  - writer
+  - plot
+  - language
+  - country
+  - poster
+  - full OMDb ratings array
+- Public movie API responses now include those fields while still excluding `omdb_payload`.
+- Public movie detail drawer now groups data into overview, ratings, cast/crew, awards,
+  and technical sections.
+- Public movie table keeps a compact default layout but now stacks Plex, IMDb, and Rotten
+  Tomatoes ratings in the ratings column when available.
+- Updated and copied static frontend assets to `C:\website\plexsort`.
+
+Validation:
+
+- `python -m ruff check .` passed.
+- `python -m compileall src alembic tests` passed.
+- `python -m pytest` passed with 19 tests.
+- `python -m mypy --no-incremental --cache-dir .mypy_cache src/plexsort` passed with
+  no issues.
+- `node --check frontend\assets\app.js` passed.
+- `node --check frontend\assets\admin.js` passed.
+- `docker compose build app` passed.
+- `docker compose up -d app` restarted the rebuilt backend.
+- Live public API returned OMDb detail fields including `omdb_plot`.
+- Live public HTML references `assets/style.css?v=13` and `assets/app.js?v=13`.
 
 ## Known Gaps
 

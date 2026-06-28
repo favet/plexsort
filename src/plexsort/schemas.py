@@ -15,6 +15,7 @@ class MoviePublic(BaseModel):
     genres: list[str]
     directors: list[str]
     duration_ms: int | None
+    bitrate_kbps: int | None
     resolution: str | None
     video_codec: str | None
     audience_rating: float | None
@@ -26,6 +27,23 @@ class MoviePublic(BaseModel):
     added_at: datetime | None
     last_viewed_at: datetime | None
     view_count: int
+    omdb_box_office: str | None
+    omdb_awards: str | None
+    omdb_metascore: int | None
+    omdb_imdb_votes: int | None
+    omdb_rt_rating: str | None
+    omdb_actors: str | None
+    omdb_imdb_rating: str | None
+    omdb_rated: str | None
+    omdb_released: str | None
+    omdb_runtime: str | None
+    omdb_genre: str | None
+    omdb_writer: str | None
+    omdb_plot: str | None
+    omdb_language: str | None
+    omdb_country: str | None
+    omdb_poster: str | None
+    omdb_ratings: list[dict[str, str]]
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -71,12 +89,39 @@ class CompareResult(BaseModel):
     lb_only: list[LetterboxdEntryPublic]
     plex_only: list[MoviePublic]
     coverage_pct: float
+    matched_plex_keys: list[str]
 
 
 class StatsPublic(BaseModel):
     total_movies: int
     total_watched: int
     lists_loaded: int
+
+
+class HealthListCoverage(BaseModel):
+    id: int
+    name: str
+    entry_count: int
+    in_plex: int
+    missing: int
+    coverage_pct: float
+
+
+class HealthMetrics(BaseModel):
+    total_movies: int
+    total_watched: int
+    lists_loaded: int
+    letterboxd_entries: int
+    matched_entries: int
+    unmatched_entries: int
+    match_rate: float
+    high_confidence: int
+    medium_confidence: int
+    low_confidence: int
+    no_match: int
+    pending_review: int
+    reviewed_matches: int
+    list_coverage: list[HealthListCoverage]
 
 
 class JobAccepted(BaseModel):

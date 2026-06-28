@@ -10,6 +10,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
+from plexsort.config import Settings, get_settings
 from plexsort.db import get_db
 from plexsort.main import app
 from plexsort.models import Base, JobRun, LetterboxdEntry, LetterboxdList, Match, PlexMovie
@@ -57,6 +58,7 @@ def seed_database(db: Session) -> None:
         genres=["Science Fiction", "Action"],
         directors=["Lana Wachowski", "Lilly Wachowski"],
         duration_ms=8172000,
+        bitrate_kbps=8500,
         resolution="1080",
         video_codec="h264",
         audience_rating=None,
@@ -69,6 +71,24 @@ def seed_database(db: Session) -> None:
         last_viewed_at=datetime(2026, 1, 2, tzinfo=UTC),
         view_count=1,
         last_synced_at=datetime(2026, 1, 3, tzinfo=UTC),
+        omdb_payload={
+            "Title": "The Matrix",
+            "Rated": "R",
+            "Released": "31 Mar 1999",
+            "Runtime": "136 min",
+            "Genre": "Action, Sci-Fi",
+            "Writer": "Lilly Wachowski, Lana Wachowski",
+            "Actors": "Keanu Reeves, Laurence Fishburne, Carrie-Anne Moss",
+            "Plot": "A hacker discovers the nature of his reality.",
+            "Language": "English",
+            "Country": "United States, Australia",
+            "Poster": "https://example.test/matrix.jpg",
+            "imdbRating": "8.7",
+            "Ratings": [
+                {"Source": "Internet Movie Database", "Value": "8.7/10"},
+                {"Source": "Rotten Tomatoes", "Value": "83%"},
+            ],
+        },
     )
     movie_two = PlexMovie(
         plex_rating_key="m2",
@@ -80,6 +100,7 @@ def seed_database(db: Session) -> None:
         genres=["Science Fiction", "Drama"],
         directors=["Denis Villeneuve"],
         duration_ms=6960000,
+        bitrate_kbps=24000,
         resolution="4K",
         video_codec="hevc",
         audience_rating=None,
@@ -172,11 +193,32 @@ def test_public_api_uses_safe_response_shapes(client: TestClient) -> None:
         "lists_loaded": 1,
     }
 
-    movie_page = response_json(client.get("/api/movies?per_page=1&sort=title"))
-    assert movie_page["total"] == 2
+    movie_page = response_json(client.get("/api/movies?per_page=1&sort=title&q=Matrix"))
+    assert movie_page["total"] == 1
     assert len(movie_page["items"]) == 1
-    forbidden_fields = {"id", "file", "file_path", "media_path", "plex_token", "plex_url"}
+    movie = movie_page["items"][0]
+    forbidden_fields = {
+        "id",
+        "file",
+        "file_path",
+        "media_path",
+        "plex_token",
+        "plex_url",
+        "omdb_payload",
+    }
     assert forbidden_fields.isdisjoint(movie_page["items"][0])
+    assert movie["omdb_imdb_rating"] == "8.7"
+    assert movie["omdb_rated"] == "R"
+    assert movie["omdb_released"] == "31 Mar 1999"
+    assert movie["omdb_runtime"] == "136 min"
+    assert movie["omdb_writer"] == "Lilly Wachowski, Lana Wachowski"
+    assert movie["omdb_plot"] == "A hacker discovers the nature of his reality."
+    assert movie["omdb_language"] == "English"
+    assert movie["omdb_country"] == "United States, Australia"
+    assert movie["omdb_ratings"] == [
+        {"Source": "Internet Movie Database", "Value": "8.7/10"},
+        {"Source": "Rotten Tomatoes", "Value": "83%"},
+    ]
 
     lists = response_json(client.get("/api/lists"))
     assert lists[0]["name"] == "Sample List"
@@ -240,3 +282,79 @@ def test_admin_job_status_routes(client: TestClient) -> None:
 
     missing = client.get("/api/admin/jobs/missing")
     assert missing.status_code == 404
+
+
+def test_public_health_metrics_report_match_and_coverage(client: TestClient) -> None:
+    metrics = response_json(client.get("/api/health/metrics"))
+
+    assert metrics["total_movies"] == 2
+    assert metrics["letterboxd_entries"] == 2
+    assert metrics["matched_entries"] == 1
+    assert metrics["unmatched_entries"] == 1
+    assert metrics["match_rate"] == 50.0
+    assert metrics["low_confidence"] == 1
+    assert metrics["no_match"] == 1
+    assert metrics["pending_review"] == 2
+    assert metrics["list_coverage"] == [
+        {
+            "id": 1,
+            "name": "Sample List",
+            "entry_count": 2,
+            "in_plex": 1,
+            "missing": 1,
+            "coverage_pct": 50.0,
+        }
+    ]
+
+
+def test_public_poster_proxy_uses_plex_token_without_exposing_it(
+    api_session: Session,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: pytest.TempPathFactory,
+) -> None:
+    import io as _io
+
+    from PIL import Image
+
+    buf = _io.BytesIO()
+    Image.new("RGB", (10, 15), color=(100, 100, 100)).save(buf, format="JPEG")
+    tiny_jpeg = buf.getvalue()
+
+    captured: dict[str, object] = {}
+
+    class FakeResponse:
+        status_code = 200
+        content = tiny_jpeg
+        headers = {"content-type": "image/jpeg"}
+
+        def raise_for_status(self) -> None:
+            return None
+
+    def fake_get(url: str, params: dict[str, str], timeout: int) -> FakeResponse:
+        captured["url"] = url
+        captured["params"] = params
+        captured["timeout"] = timeout
+        return FakeResponse()
+
+    def override_get_db() -> Generator[Session, None, None]:
+        yield api_session
+
+    app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_settings] = lambda: Settings(
+        PLEX_URL="http://plex.local:32400",
+        PLEX_TOKEN="secret-token",
+        PLEX_LIBRARY="Movies",
+    )
+    monkeypatch.setattr("plexsort.api.public.requests.get", fake_get)
+    monkeypatch.setattr("plexsort.api.public.POSTER_CACHE_DIR", tmp_path)
+    try:
+        with TestClient(app) as poster_client:
+            response = poster_client.get("/api/posters/m1")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "image/jpeg"
+    assert captured["url"] == "http://plex.local:32400/library/metadata/m1/thumb"
+    assert captured["params"] == {"X-Plex-Token": "secret-token"}
+    assert "secret-token" not in response.text

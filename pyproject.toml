@@ -17,6 +17,7 @@ dependencies = [
     "requests>=2.32",
     "sqlalchemy>=2.0",
     "uvicorn[standard]>=0.30",
+    "Pillow>=10.0",
 ]
 
 [project.optional-dependencies]

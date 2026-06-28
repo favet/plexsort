@@ -40,6 +40,7 @@ class PlexMovie(Base):
     genres: Mapped[list[str]] = mapped_column(StringList, nullable=False, default=list)
     directors: Mapped[list[str]] = mapped_column(StringList, nullable=False, default=list)
     duration_ms: Mapped[int | None] = mapped_column(BigInteger)
+    bitrate_kbps: Mapped[int | None] = mapped_column(Integer)
     resolution: Mapped[str | None] = mapped_column(Text)
     video_codec: Mapped[str | None] = mapped_column(Text)
     audience_rating: Mapped[Decimal | None] = mapped_column(Numeric)
@@ -53,7 +54,84 @@ class PlexMovie(Base):
     view_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     last_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
+    omdb_box_office: Mapped[str | None] = mapped_column(Text)
+    omdb_awards: Mapped[str | None] = mapped_column(Text)
+    omdb_metascore: Mapped[int | None] = mapped_column(Integer)
+    omdb_imdb_votes: Mapped[int | None] = mapped_column(Integer)
+    omdb_rt_rating: Mapped[str | None] = mapped_column(Text)
+    omdb_actors: Mapped[str | None] = mapped_column(Text)
+    omdb_enriched_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    omdb_checked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    omdb_error: Mapped[str | None] = mapped_column(Text)
+    omdb_payload: Mapped[dict[str, object] | None] = mapped_column(JsonObject)
+
     matches: Mapped[list[Match]] = relationship(back_populates="plex_movie")
+
+    def _omdb_text(self, key: str) -> str | None:
+        if not self.omdb_payload:
+            return None
+        value = self.omdb_payload.get(key)
+        if not isinstance(value, str):
+            return None
+        value = value.strip()
+        return value if value and value != "N/A" else None
+
+    @property
+    def omdb_imdb_rating(self) -> str | None:
+        return self._omdb_text("imdbRating")
+
+    @property
+    def omdb_rated(self) -> str | None:
+        return self._omdb_text("Rated")
+
+    @property
+    def omdb_released(self) -> str | None:
+        return self._omdb_text("Released")
+
+    @property
+    def omdb_runtime(self) -> str | None:
+        return self._omdb_text("Runtime")
+
+    @property
+    def omdb_genre(self) -> str | None:
+        return self._omdb_text("Genre")
+
+    @property
+    def omdb_writer(self) -> str | None:
+        return self._omdb_text("Writer")
+
+    @property
+    def omdb_plot(self) -> str | None:
+        return self._omdb_text("Plot")
+
+    @property
+    def omdb_language(self) -> str | None:
+        return self._omdb_text("Language")
+
+    @property
+    def omdb_country(self) -> str | None:
+        return self._omdb_text("Country")
+
+    @property
+    def omdb_poster(self) -> str | None:
+        return self._omdb_text("Poster")
+
+    @property
+    def omdb_ratings(self) -> list[dict[str, str]]:
+        if not self.omdb_payload:
+            return []
+        ratings = self.omdb_payload.get("Ratings")
+        if not isinstance(ratings, list):
+            return []
+        safe_ratings: list[dict[str, str]] = []
+        for item in ratings:
+            if not isinstance(item, dict):
+                continue
+            source = item.get("Source")
+            value = item.get("Value")
+            if isinstance(source, str) and isinstance(value, str):
+                safe_ratings.append({"Source": source, "Value": value})
+        return safe_ratings
 
 
 class LetterboxdList(Base):
