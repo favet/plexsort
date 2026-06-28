@@ -789,6 +789,24 @@ select {
   overflow: auto;
 }
 
+.table-frame::-webkit-scrollbar {
+  height: 3px;
+  width: 3px;
+}
+
+.table-frame::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.table-frame::-webkit-scrollbar-thumb {
+  background: var(--line);
+  border-radius: 2px;
+}
+
+.table-frame::-webkit-scrollbar-thumb:hover {
+  background: var(--muted);
+}
+
 table {
   width: 100%;
   min-width: 900px;
@@ -1258,72 +1276,102 @@ progress {
   }
 }
 
+/* ── Mobile: horizontal-scroll spreadsheet layout ── */
 @media (max-width: 680px) {
+  /* Scrollable container with pure-CSS right-edge fade hint.
+     "local" cover scrolls with content and hides the fade when fully scrolled right;
+     "scroll" gradient stays viewport-fixed, creating the visible shadow. */
   .table-frame {
-    overflow: visible;
+    overflow-x: auto;
+    overflow-y: visible;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+    background:
+      linear-gradient(to left, var(--bg), transparent) right / 40px 100% local no-repeat,
+      linear-gradient(to left, rgba(0, 0, 0, 0.4), transparent) right / 40px 100% scroll no-repeat;
   }
 
-  table,
-  tbody,
-  tr,
-  td {
-    display: block;
-    width: 100%;
-  }
-
+  /* Let the table size to its content */
   table {
-    min-width: 0;
+    min-width: unset;
+    width: max-content;
   }
 
-  thead {
-    display: none;
-  }
-
-  tbody {
-    display: grid;
-    gap: 8px;
-  }
-
-  tr {
-    display: block;
-    padding: 10px;
-    border: 1px solid var(--line);
-  }
-
+  /* Compact cells */
+  th,
   td {
-    border: 0;
-    padding: 0;
+    padding: 6px 9px;
+    font-size: 0.74rem;
+    white-space: nowrap;
   }
 
-  td[data-column]:not([data-column="title"]) {
+  th {
+    font-size: 0.64rem;
+    padding: 5px 9px;
+  }
+
+  /* ── Frozen title column ── */
+  th:first-child,
+  td[data-column="title"] {
+    position: sticky;
+    left: 0;
+    z-index: 2;
+    background: var(--bg);
+    min-width: 120px;
+    max-width: 155px;
+    white-space: normal;
+  }
+
+  th:first-child {
+    z-index: 3;
+  }
+
+  /* Shadow appears once the user has scrolled (js toggles .is-scrolled) */
+  .table-frame.is-scrolled th:first-child,
+  .table-frame.is-scrolled td[data-column="title"] {
+    box-shadow: 3px 0 14px -2px rgba(0, 0, 0, 0.9), 1px 0 0 var(--line);
+  }
+
+  /* Row hover must also update the sticky cell background */
+  tbody tr:hover td[data-column="title"] {
+    background: rgba(255, 255, 255, 0.018);
+  }
+
+  /* Title cell content: no poster, no genres, no meta pills — title only */
+  .poster-thumb,
+  .genre-row,
+  .movie-title .movie-meta,
+  .mobile-card-meta {
     display: none;
   }
 
   .movie-title {
+    display: block;
     min-width: 0;
-    align-items: flex-start;
   }
 
   .movie-title strong {
-    overflow-wrap: anywhere;
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.8rem;
+    line-height: 1.35;
   }
 
-  .movie-title .movie-meta {
-    display: none;
+  /* Compact rating stacks */
+  .rating-stack {
+    font-size: 0.7rem;
+    gap: 1px;
+    min-width: 0;
   }
 
-  .mobile-card-meta {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px;
-    margin-top: 7px;
+  /* Gold in-list border on the sticky cell (tr border hides behind it) */
+  tr[data-in-list="true"] {
+    border-left: none;
   }
 
-  .mobile-card-meta span {
-    border: 1px solid var(--line);
-    color: var(--muted);
-    font-size: 0.72rem;
-    line-height: 1.2;
-    padding: 3px 6px;
+  tr[data-in-list="true"] td[data-column="title"] {
+    border-left: 2px solid rgba(200, 168, 75, 0.55);
   }
 }

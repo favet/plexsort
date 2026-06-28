@@ -1079,6 +1079,11 @@ async function init() {
   const isMobile = window.matchMedia("(max-width: 860px)").matches;
   if (isMobile) { setSidebarOpen(false); setFiltersCollapsed(false); }
 
+  // Sticky-column shadow: activate once the user scrolls the table
+  els.tableFrame.addEventListener("scroll", () => {
+    els.tableFrame.classList.toggle("is-scrolled", els.tableFrame.scrollLeft > 4);
+  }, { passive: true });
+
   loadColumnState();
   if (state.sort !== "title") promoteSortColumn(state.sort);
   renderColumnControls();
