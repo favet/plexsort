@@ -17,11 +17,11 @@ let lastComparison = null;
 let currentPageMovies = [];
 let matchedPlexKeys = new Set();
 
-const COLUMN_STORAGE_KEY = "plexsort.visibleColumns.v1";
-const PRESET_STORAGE_KEY = "plexsort.columnPreset.v1";
+const COLUMN_STORAGE_KEY = "plexsort.visibleColumns.v2";
+const PRESET_STORAGE_KEY = "plexsort.columnPreset.v2";
 
 const COLUMN_PRESETS = {
-  library: ["title", "year", "duration", "ratings", "resolution", "watched"],
+  library: ["title", "year", "ratings", "imdb_rating", "rt_rating", "metascore", "duration", "resolution", "watched"],
   ratings: ["title", "year", "ratings", "imdb_rating", "metascore", "rt_rating", "box_office"],
   release: ["title", "year", "released", "rated", "country", "language", "studio"],
   technical: ["title", "resolution", "bitrate", "codec", "duration", "added"],
@@ -48,7 +48,7 @@ const COLUMN_DEFS = {
   title: { label: "Title", sort: "title" },
   year: { label: "Year", sort: "year", render: (m) => valueOrDash(m.year) },
   duration: { label: "Duration", sort: "duration", render: (m) => formatDuration(m.duration_ms) },
-  ratings: { label: "Ratings" },
+  ratings: { label: "Plex Score", sort: "rating", render: (m) => formatRating(m.rating) },
   rating: { label: "Plex Critic", sort: "rating", render: (m) => formatRating(m.rating) },
   audience: { label: "Plex Audience", sort: "audience_rating", render: (m) => formatRating(m.audience_rating) },
   imdb_rating: { label: "IMDb", sort: "imdb_rating", render: (m) => valueOrDash(m.omdb_imdb_rating) },
@@ -519,14 +519,6 @@ function renderTableHeader() {
   }).join("");
 }
 
-function renderRatingsCell(movie) {
-  return `
-    <span class="rating-stack">
-      <span>Plex ${escapeHtml(formatRating(movie.rating))}</span>
-      ${movie.omdb_imdb_rating ? `<span>IMDb ${escapeHtml(movie.omdb_imdb_rating)}</span>` : ""}
-      ${movie.omdb_rt_rating ? `<span>RT ${escapeHtml(movie.omdb_rt_rating)}</span>` : ""}
-    </span>`;
-}
 
 function renderMobileMeta(movie) {
   const items = [
@@ -558,7 +550,6 @@ function renderTitleCell(movie, thumb, genreHtml) {
 function renderCell(movie, key, thumb, genreHtml) {
   const def = COLUMN_DEFS[key];
   if (key === "title") return renderTitleCell(movie, thumb, genreHtml);
-  if (key === "ratings") return renderRatingsCell(movie);
   return escapeHtml(def.render ? def.render(movie) : "");
 }
 
