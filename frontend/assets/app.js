@@ -9,11 +9,52 @@ const state = {
   listFilter: null,
   missingSort: "position",
   missingDir: "asc",
+  columnPreset: "library",
+  visibleColumns: [],
 };
 
 let lastComparison = null;
 let currentPageMovies = [];
 let matchedPlexKeys = new Set();
+
+const COLUMN_STORAGE_KEY = "plexsort.visibleColumns.v1";
+const PRESET_STORAGE_KEY = "plexsort.columnPreset.v1";
+
+const COLUMN_PRESETS = {
+  library: ["title", "year", "duration", "ratings", "resolution", "watched"],
+  ratings: ["title", "year", "ratings", "imdb_rating", "metascore", "rt_rating", "box_office"],
+  release: ["title", "year", "released", "rated", "country", "language", "studio"],
+  technical: ["title", "resolution", "bitrate", "codec", "duration", "added"],
+  people: ["title", "year", "director", "writer", "actors"],
+  omdb: ["title", "year", "imdb_rating", "rated", "released", "runtime", "country"],
+};
+
+const COLUMN_DEFS = {
+  title: { label: "Title", sort: "title" },
+  year: { label: "Year", sort: "year", render: (m) => valueOrDash(m.year) },
+  duration: { label: "Duration", sort: "duration", render: (m) => formatDuration(m.duration_ms) },
+  ratings: { label: "Ratings" },
+  rating: { label: "Plex Critic", sort: "rating", render: (m) => formatRating(m.rating) },
+  audience: { label: "Plex Audience", sort: "audience_rating", render: (m) => formatRating(m.audience_rating) },
+  imdb_rating: { label: "IMDb", render: (m) => valueOrDash(m.omdb_imdb_rating) },
+  metascore: { label: "Metascore", render: (m) => valueOrDash(m.omdb_metascore) },
+  rt_rating: { label: "RT", render: (m) => valueOrDash(m.omdb_rt_rating) },
+  box_office: { label: "Box Office", render: (m) => valueOrDash(m.omdb_box_office) },
+  released: { label: "Released", render: (m) => valueOrDash(m.omdb_released) },
+  rated: { label: "Rated", render: (m) => valueOrDash(m.omdb_rated || m.content_rating) },
+  runtime: { label: "Runtime", render: (m) => valueOrDash(m.omdb_runtime) },
+  country: { label: "Country", render: (m) => valueOrDash(m.omdb_country) },
+  language: { label: "Language", render: (m) => valueOrDash(m.omdb_language) },
+  studio: { label: "Studio", render: (m) => valueOrDash(m.studio) },
+  resolution: { label: "Resolution", render: (m) => formatResolution(m.resolution) },
+  bitrate: { label: "Bitrate", sort: "bitrate", render: (m) => formatBitrate(m.bitrate_kbps) },
+  codec: { label: "Codec", render: (m) => valueOrDash(m.video_codec) },
+  watched: { label: "Watched", render: (m) => (m.view_count > 0 ? "Yes" : "No") },
+  added: { label: "Added", sort: "added_at", render: (m) => formatDate(m.added_at) },
+  director: { label: "Director", render: (m) => (m.directors || []).join(", ") || "--" },
+  writer: { label: "Writer", render: (m) => valueOrDash(m.omdb_writer) },
+  actors: { label: "Actors", render: (m) => valueOrDash(m.omdb_actors) },
+};
 
 const els = {
   totalMovies: document.querySelector("#totalMovies"),
@@ -27,6 +68,11 @@ const els = {
   sortSelect: document.querySelector("#sortSelect"),
   sortDirButton: document.querySelector("#sortDirButton"),
   perPageSelect: document.querySelector("#perPageSelect"),
+  columnToggleButton: document.querySelector("#columnToggleButton"),
+  columnPanel: document.querySelector("#columnPanel"),
+  columnPresets: document.querySelector("#columnPresets"),
+  columnOptions: document.querySelector("#columnOptions"),
+  moviesHead: document.querySelector("#moviesHead"),
   activeFilters: document.querySelector("#activeFilters"),
   sidebar: document.querySelector("#sidebar"),
   sidebarToggleButton: document.querySelector("#sidebarToggleButton"),
@@ -327,6 +373,111 @@ function setSidebarOpen(open) {
 
 function showMissingView() { els.tableFrame.hidden = true; els.missingView.hidden = false; }
 function closeMissingView() { els.missingView.hidden = true; els.tableFrame.hidden = false; }
+// Column system
+
+function validColumns(columns) {
+  const unique = [...new Set(columns.filter((key) => COLUMN_DEFS[key]))];
+  return unique.includes("title") ? unique : ["title", ...unique];
+}
+
+function loadColumnState() {
+  const storedPreset = localStorage.getItem(PRESET_STORAGE_KEY);
+  const storedColumns = localStorage.getItem(COLUMN_STORAGE_KEY);
+  state.columnPreset = COLUMN_PRESETS[storedPreset] ? storedPreset : "library";
+  if (storedColumns) {
+    try {
+      const parsed = JSON.parse(storedColumns);
+      if (Array.isArray(parsed)) {
+        state.visibleColumns = validColumns(parsed);
+        return;
+      }
+    } catch {
+      // Fall back to the preset below.
+    }
+  }
+  state.visibleColumns = [...COLUMN_PRESETS[state.columnPreset]];
+}
+
+function saveColumnState() {
+  localStorage.setItem(PRESET_STORAGE_KEY, state.columnPreset);
+  localStorage.setItem(COLUMN_STORAGE_KEY, JSON.stringify(state.visibleColumns));
+}
+
+function setColumnPreset(name) {
+  state.columnPreset = name;
+  state.visibleColumns = [...COLUMN_PRESETS[name]];
+  saveColumnState();
+  renderColumnControls();
+  renderMovies({ total: state.total, page: state.page, per_page: state.perPage, items: currentPageMovies });
+}
+
+function toggleColumn(key, checked) {
+  if (key === "title") return;
+  state.visibleColumns = checked
+    ? validColumns([...state.visibleColumns, key])
+    : validColumns(state.visibleColumns.filter((column) => column !== key));
+  state.columnPreset = "custom";
+  saveColumnState();
+  renderColumnControls();
+  renderMovies({ total: state.total, page: state.page, per_page: state.perPage, items: currentPageMovies });
+}
+
+function renderColumnControls() {
+  els.columnPresets.innerHTML = Object.keys(COLUMN_PRESETS)
+    .map((name) => `
+      <button class="column-preset-btn" type="button" data-column-preset="${escapeHtml(name)}" aria-pressed="${state.columnPreset === name}">
+        ${escapeHtml(name)}
+      </button>`)
+    .join("");
+  els.columnOptions.innerHTML = Object.entries(COLUMN_DEFS)
+    .map(([key, def]) => `
+      <label>
+        <input type="checkbox" data-column-key="${escapeHtml(key)}" ${state.visibleColumns.includes(key) ? "checked" : ""} ${key === "title" ? "disabled" : ""} />
+        ${escapeHtml(def.label)}
+      </label>`)
+    .join("");
+}
+
+function renderTableHeader() {
+  els.moviesHead.innerHTML = state.visibleColumns.map((key) => {
+    const def = COLUMN_DEFS[key];
+    if (def.sort) {
+      return `<th><button data-sort="${escapeHtml(def.sort)}" type="button">${escapeHtml(def.label)}</button></th>`;
+    }
+    return `<th>${escapeHtml(def.label)}</th>`;
+  }).join("");
+}
+
+function renderRatingsCell(movie) {
+  return `
+    <span class="rating-stack">
+      <span>Plex ${escapeHtml(formatRating(movie.rating))}</span>
+      ${movie.omdb_imdb_rating ? `<span>IMDb ${escapeHtml(movie.omdb_imdb_rating)}</span>` : ""}
+      ${movie.omdb_rt_rating ? `<span>RT ${escapeHtml(movie.omdb_rt_rating)}</span>` : ""}
+    </span>`;
+}
+
+function renderTitleCell(movie, thumb, genreHtml) {
+  return `
+    <div class="movie-title">
+      ${thumb
+        ? `<img class="poster-thumb" src="${escapeHtml(thumb)}" alt="" loading="lazy" />`
+        : '<span class="poster-thumb" aria-hidden="true"></span>'
+      }
+      <div>
+        <strong>${escapeHtml(movie.title)}</strong>
+        <div class="muted">${escapeHtml(valueOrDash(movie.content_rating))}</div>
+        ${genreHtml ? `<div class="movie-meta">${genreHtml}</div>` : ""}
+      </div>
+    </div>`;
+}
+
+function renderCell(movie, key, thumb, genreHtml) {
+  const def = COLUMN_DEFS[key];
+  if (key === "title") return renderTitleCell(movie, thumb, genreHtml);
+  if (key === "ratings") return renderRatingsCell(movie);
+  return escapeHtml(def.render ? def.render(movie) : "");
+}
 
 // ── List filter ────────────────────────────────────────────────────────────
 
@@ -419,6 +570,7 @@ function renderMovies(page) {
     els.exportFilteredLink.href = buildExportUrl();
   }
 
+  renderTableHeader();
   els.moviesBody.innerHTML = page.items
     .map((movie) => {
       const thumb = posterUrl(movie);
@@ -427,29 +579,10 @@ function renderMovies(page) {
             `${i > 0 ? '<span class="genre-sep">·</span>' : ""}<button class="genre-btn" data-filter-genre="${escapeHtml(g)}">${escapeHtml(g)}</button>`
           ).join("")
         : "";
-      const watched = movie.view_count > 0;
       const inList = matchedPlexKeys.has(movie.plex_rating_key);
       return `
         <tr data-movie-key="${escapeHtml(movie.plex_rating_key)}" data-in-list="${inList}">
-          <td>
-            <div class="movie-title">
-              ${thumb
-                ? `<img class="poster-thumb" src="${escapeHtml(thumb)}" alt="" loading="lazy" />`
-                : '<span class="poster-thumb" aria-hidden="true"></span>'
-              }
-              <div>
-                <strong>${escapeHtml(movie.title)}</strong>
-                <div class="muted">${escapeHtml(valueOrDash(movie.content_rating))}</div>
-                ${genreHtml ? `<div class="movie-meta">${genreHtml}</div>` : ""}
-              </div>
-            </div>
-          </td>
-          <td data-label="Year">${escapeHtml(valueOrDash(movie.year))}</td>
-          <td data-label="Duration">${escapeHtml(formatDuration(movie.duration_ms))}</td>
-          <td data-label="Ratings"><span class="rating-stack"><span>Plex ${escapeHtml(formatRating(movie.rating))}</span>${movie.omdb_imdb_rating ? `<span>IMDb ${escapeHtml(movie.omdb_imdb_rating)}</span>` : ""}${movie.omdb_rt_rating ? `<span>RT ${escapeHtml(movie.omdb_rt_rating)}</span>` : ""}</span></td>
-          <td data-label="Bitrate">${escapeHtml(formatBitrate(movie.bitrate_kbps))}</td>
-          <td data-label="Resolution">${escapeHtml(formatResolution(movie.resolution))}</td>
-          <td data-label="Watched" class="${watched ? "status-good" : "status-bad"}">${watched ? "Yes" : "No"}</td>
+          ${state.visibleColumns.map((key) => `<td data-label="${escapeHtml(COLUMN_DEFS[key].label)}">${renderCell(movie, key, thumb, genreHtml)}</td>`).join("")}
         </tr>`;
     })
     .join("");
@@ -654,6 +787,33 @@ function bindEvents() {
     });
   });
 
+  els.moviesHead.addEventListener("click", (event) => {
+    const btn = event.target.closest("button[data-sort]");
+    if (!btn) return;
+    const sort = btn.dataset.sort;
+    if (state.sort === sort) { state.dir = state.dir === "asc" ? "desc" : "asc"; }
+    else { state.sort = sort; state.dir = "asc"; }
+    refreshMovies();
+  });
+
+  els.columnToggleButton.addEventListener("click", () => {
+    const open = els.columnPanel.hidden;
+    els.columnPanel.hidden = !open;
+    els.columnToggleButton.setAttribute("aria-expanded", open ? "true" : "false");
+  });
+
+  els.columnPresets.addEventListener("click", (event) => {
+    const btn = event.target.closest("[data-column-preset]");
+    if (!btn) return;
+    setColumnPreset(btn.dataset.columnPreset);
+  });
+
+  els.columnOptions.addEventListener("change", (event) => {
+    const input = event.target.closest("[data-column-key]");
+    if (!input) return;
+    toggleColumn(input.dataset.columnKey, input.checked);
+  });
+
   els.sortSelect.addEventListener("change", () => {
     state.sort = els.sortSelect.value;
     state.page = 1;
@@ -818,6 +978,8 @@ async function init() {
   const isMobile = window.matchMedia("(max-width: 860px)").matches;
   if (isMobile) { setSidebarOpen(false); setFiltersCollapsed(false); }
 
+  loadColumnState();
+  renderColumnControls();
   bindEvents();
   updateSortDropdown();
   updateSortIndicators();

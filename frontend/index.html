@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>PlexSort</title>
-    <link rel="stylesheet" href="assets/style.css?v=13" />
+    <link rel="stylesheet" href="assets/style.css?v=14" />
   </head>
   <body data-view="public">
     <header class="topbar">
@@ -113,6 +113,7 @@
             </div>
           </div>
           <div class="toolbar-actions">
+            <button class="ghost-button column-toggle" id="columnToggleButton" type="button" aria-expanded="false">Columns</button>
             <select id="sortSelect" class="sort-select" title="Sort by">
               <option value="title">Title</option>
               <option value="year">Year</option>
@@ -139,18 +140,15 @@
 
         <div class="active-filters" id="activeFilters" hidden></div>
 
+        <div class="column-panel" id="columnPanel" hidden>
+          <div class="column-presets" id="columnPresets"></div>
+          <div class="column-options" id="columnOptions"></div>
+        </div>
+
         <div class="table-frame" id="tableFrame">
           <table>
             <thead>
-              <tr>
-                <th><button data-sort="title" type="button">Title</button></th>
-                <th><button data-sort="year" type="button">Year</button></th>
-                <th><button data-sort="duration" type="button">Duration</button></th>
-                <th><button data-sort="rating" type="button">Ratings</button></th>
-                <th><button data-sort="bitrate" type="button">Bitrate</button></th>
-                <th>Resolution</th>
-                <th>Watched</th>
-              </tr>
+              <tr id="moviesHead"></tr>
             </thead>
             <tbody id="moviesBody"></tbody>
           </table>
@@ -195,6 +193,6 @@
     </div>
 
     <datalist id="genreOptions"></datalist>
-    <script src="assets/app.js?v=13"></script>
+    <script src="assets/app.js?v=14"></script>
   </body>
 </html>

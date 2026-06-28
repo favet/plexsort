@@ -394,6 +394,59 @@ select {
   margin-bottom: 10px;
 }
 
+.column-panel {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 12px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+}
+
+.column-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.column-preset-btn {
+  min-height: 28px;
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  background: transparent;
+  color: var(--muted);
+  padding: 4px 8px;
+  font-size: 0.78rem;
+  text-transform: capitalize;
+}
+
+.column-preset-btn[aria-pressed="true"] {
+  border-color: rgba(200, 168, 75, 0.5);
+  color: var(--accent);
+}
+
+.column-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 6px 10px;
+}
+
+.column-options label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 28px;
+  color: var(--text);
+  font-size: 0.82rem;
+  letter-spacing: 0;
+}
+
+.column-options input {
+  width: auto;
+  min-height: auto;
+  margin: 0;
+}
+
 .filter-chip {
   display: inline-flex;
   align-items: center;

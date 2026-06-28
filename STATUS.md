@@ -546,6 +546,36 @@ Validation:
 - Live public API returned OMDb detail fields including `omdb_plot`.
 - Live public HTML references `assets/style.css?v=13` and `assets/app.js?v=13`.
 
+### 2026-06-28 - Desktop Column Presets
+
+Added first-pass desktop column management:
+
+- Public movie table headers and cells now render from a column definition map.
+- Added a `Columns` control with presets:
+  - library
+  - ratings
+  - release
+  - technical
+  - people
+  - omdb
+- Added checkbox column selection with `localStorage` persistence.
+- The default table remains compact, while users can opt into wider enriched-data views.
+- Non-sortable enriched columns render as plain headers; backend sort/filter expansion remains
+  a later phase.
+- Copied updated static frontend assets to `C:\website\plexsort`.
+
+Validation:
+
+- `python -m ruff check .` passed.
+- `python -m compileall src alembic tests` passed.
+- `python -m pytest` passed with 19 tests.
+- `python -m mypy --no-incremental --cache-dir .mypy_cache src/plexsort` passed with
+  no issues.
+- `node --check frontend\assets\app.js` passed.
+- `node --check frontend\assets\admin.js` passed.
+- Live public HTML references `assets/style.css?v=14`, `assets/app.js?v=14`, and includes
+  the `columnPanel` markup.
+
 ## Known Gaps
 
 - No API integration tests exist yet.
