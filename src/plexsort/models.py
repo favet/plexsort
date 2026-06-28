@@ -60,6 +60,7 @@ class PlexMovie(Base):
     omdb_metascore: Mapped[int | None] = mapped_column(Integer)
     omdb_imdb_votes: Mapped[int | None] = mapped_column(Integer)
     omdb_rt_rating: Mapped[str | None] = mapped_column(Text)
+    omdb_rt_rating_raw: Mapped[int | None] = mapped_column(Integer)
     omdb_actors: Mapped[str | None] = mapped_column(Text)
     omdb_enriched_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     omdb_checked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

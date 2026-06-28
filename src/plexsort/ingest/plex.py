@@ -6,7 +6,7 @@ from urllib.parse import urljoin
 from xml.etree import ElementTree
 
 import requests
-from sqlalchemy import delete
+from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from plexsort.config import Settings
@@ -149,8 +149,13 @@ def sync_plex_movies(
     section_key = find_library_section_key(settings)
     videos = library_videos(settings, section_key)
     synced_at = datetime.now(UTC)
-    movies: list[PlexMovie] = []
     total = len(videos)
+
+    # Index existing rows so we can update-in-place and preserve OMDb enrichment.
+    existing: dict[str, PlexMovie] = {
+        m.plex_rating_key: m for m in db.scalars(select(PlexMovie)).all()
+    }
+    synced_keys: set[str] = set()
 
     for index, item in enumerate(videos, start=1):
         rating_key = item.attrib["ratingKey"]
@@ -161,13 +166,23 @@ def sync_plex_movies(
         video = detail.find("./Video")
         if video is None:
             continue
-        movies.append(PlexMovie(**movie_from_video(video, synced_at)))
 
-    if progress is not None:
-        progress(total, total, "plex_database", "Replacing Plex movie table")
-    db.execute(delete(PlexMovie))
-    db.add_all(movies)
+        plex_fields = movie_from_video(video, synced_at)
+        synced_keys.add(rating_key)
+
+        if rating_key in existing:
+            movie = existing[rating_key]
+            for key, value in plex_fields.items():
+                setattr(movie, key, value)
+        else:
+            db.add(PlexMovie(**plex_fields))
+
+    # Prune movies that no longer exist in Plex.
+    stale_keys = set(existing.keys()) - synced_keys
+    if stale_keys:
+        db.execute(delete(PlexMovie).where(PlexMovie.plex_rating_key.in_(stale_keys)))
+
     db.commit()
     if progress is not None:
-        progress(total, total, "plex_complete", f"Synced {len(movies)} Plex movies")
-    return len(movies)
+        progress(total, total, "plex_complete", f"Synced {total} Plex movies")
+    return total

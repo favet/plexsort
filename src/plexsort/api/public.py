@@ -83,6 +83,7 @@ SORT_COLUMNS = {
     "duration": PlexMovie.duration_ms,
     "bitrate": PlexMovie.bitrate_kbps,
     "box_office": PlexMovie.omdb_box_office_raw,
+    "rt_rating": PlexMovie.omdb_rt_rating_raw,
     "imdb_rating": cast(_omdb_text("imdbRating"), Float),
     "metascore": cast(_omdb_text("Metascore"), Float),
     "released": _omdb_text("Released"),
@@ -574,7 +575,8 @@ def export_movies_csv(
         has_omdb=has_omdb,
     )
     sort_col = SORT_COLUMNS.get(sort, PlexMovie.title_sort)
-    statement = statement.order_by(sort_col.desc() if dir == "desc" else sort_col.asc())
+    order = sort_col.desc() if dir == "desc" else sort_col.asc()
+    statement = statement.order_by(nullslast(order))
     movies = list(db.scalars(statement).all())
     export_columns = _export_columns(columns)
     buf = io.StringIO()

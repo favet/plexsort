@@ -672,23 +672,81 @@ Validation:
 - Local `GET /api/movies?has_omdb=false` returned 15 movies (expected — 15 have no IMDb IDs).
 - Static frontend assets copied to `C:\website\plexsort`.
 
+### 2026-06-28 - Box Office Sort, Column Promotion, Bitrate Fallback, NULLS LAST
+
+Added the remaining Phase 15 sort and UX features:
+
+- **Box office sort**: Added `omdb_box_office_raw` (BIGINT) column via Alembic revision
+  `007_box_office_raw`. Migration backfills from existing `omdb_box_office` text. Backend
+  whitelist now includes `box_office → PlexMovie.omdb_box_office_raw`.
+- **NULLS LAST**: Applied `nullslast()` to all sort orders in both `list_movies` and
+  `export_movies_csv` so unenriched movies sink to the bottom on both ASC and DESC sorts.
+- **Column promotion on sort change**: When the user picks a new sort option, the corresponding
+  column is promoted to position 1 (right after Title) so the sort key is always visible.
+  `SORT_TO_COLUMN` maps sort keys to column keys; `promoteSortColumn()` reorders
+  `state.visibleColumns` and saves to localStorage.
+- **Bitrate fallback**: `_bitrate_kbps()` now tries `<Media bitrate>` first, then
+  `<Part bitrate>`, since Plex version and analysis state affect which element carries bitrate.
+- Sort dropdown now includes "Box Office".
+- Version bumped to v=18.
+
+### 2026-06-28 - RT Rating Sort and Plex Sync Upsert Fix
+
+Added Rotten Tomatoes as a sortable numeric column and fixed a critical data-loss bug:
+
+- **omdb_rt_rating_raw**: Added `omdb_rt_rating_raw` (INTEGER) column via Alembic revision
+  `008_rt_rating_raw`. Migration backfills `omdb_rt_rating` text (e.g. "83%") → integer (83).
+  `_enrich()` in `omdb.py` now computes `omdb_rt_rating_raw = _parse_rt_pct(rt)` at enrichment
+  time. Backend `SORT_COLUMNS` includes `rt_rating → PlexMovie.omdb_rt_rating_raw`.
+- **RT Rating sort**: Sort dropdown now includes "RT rating". `rt_rating` column in `COLUMN_DEFS`
+  now has `sort: "rt_rating"`. `SORT_TO_COLUMN` includes `rt_rating: "rt_rating"`.
+- **CSV export nullslast fix**: The `export_movies_csv` sort path was missing `nullslast()` —
+  fixed so nulls sort to the bottom on CSV exports, matching the paginated API.
+- **Plex sync upsert fix**: `sync_plex_movies()` previously did `DELETE FROM plex_movies`
+  followed by a full re-insert. This wiped all OMDb enrichment on every Plex sync, causing the
+  user to lose 1,766 OMDb payloads after triggering a sync to populate bitrate. Fixed to use
+  upsert-style logic: index existing rows by `plex_rating_key`, update Plex fields in-place for
+  existing movies (preserving OMDb columns), add new rows for Plex additions, and prune rows
+  for removed movies. Added a test verifying `omdb_metascore` is preserved across a sync.
+- Version bumped to v=19.
+
+Validation:
+
+- `python -m ruff check .` passed.
+- `python -m compileall src alembic tests` passed.
+- `python -m pytest` passed with 20 tests.
+- `python -m mypy --no-incremental --cache-dir .mypy_cache src/plexsort` passed.
+- `node --check frontend/assets/app.js` passed.
+- `node --check frontend/assets/admin.js` passed.
+- `docker compose build app` passed.
+- Migration `008_rt_rating_raw` applied successfully.
+- `docker compose up -d app` restarted the rebuilt container.
+- Local `GET /health` returned `{"status":"ok"}`.
+- Local `GET /api/stats` returned 1,778 movies, 196 watched, 2 lists.
+- Static frontend assets copied to `C:\website\plexsort`.
+
+Current OMDb status after accidental data loss from Plex sync:
+
+- Plex sync ran and wiped all `omdb_payload` rows (sync-upsert fix was not yet applied at sync
+  time). OMDb enrichment must be re-run from the admin page.
+- Bitrate is now populated: 1,773 of 1,778 movies have `bitrate_kbps`.
+- OMDb enrichment will repopulate `omdb_rt_rating_raw` automatically via `_enrich()` going
+  forward; `008_rt_rating_raw` backfill migration will apply retroactively once enrichment runs.
+
 ## Known Gaps
 
 - Letterboxd scrape has not been tested against a real public list.
-- RT, box office, and runtime sorts require numeric extraction columns (deferred — would need a
-  migration to add `omdb_rt_pct` and `omdb_runtime_min` int columns).
-- Browser smoke test for the mobile card layout has not been verified visually (browser automation
-  remains unreliable).
+- Runtime sort: could be added as `omdb_runtime_min` int column (similar pattern to box_office_raw
+  and rt_rating_raw), but `duration` sort (Plex file duration in ms) covers the use case well.
+- Browser smoke test for the mobile card layout has not been verified visually.
+- OMDb enrichment needs to be re-run from the admin page to restore 1,766 payloads wiped by
+  the Plex sync. Once re-run, RT rating sort and all OMDb fields will populate.
 - 357-item match review queue (all `confidence=none`) is untouched — TMDB integration would
-  improve match quality once a TMDB API key is available.
+  improve match quality once a TMDB API key is available. Diagnosis shows these are genuinely
+  not in the Plex library (not matching failures), so only ~19 are actionable gaps.
 
 ## Next Checkpoint
 
-Recommended: TMDB matching once a key is available, or Letterboxd list refresh (re-scrape).
-
-Exit criteria for TMDB pass:
-
-- Add `TMDB_API_KEY` to `.env` and `config.py`.
-- Resolve TMDB IDs for lb_entries via their Letterboxd film URL → TMDB lookup.
-- Re-run matching pass; confident TMDB-ID matches should resolve most of the 357 unmatched entries.
-- Update match tests to cover TMDB-based confidence path.
+1. Re-run OMDb enrichment from admin page (1,778 movies to re-enrich, 1,000 req/day → 2 days).
+2. TMDB matching once a key is available.
+3. Letterboxd list refresh (re-scrape or re-import CSV).

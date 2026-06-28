@@ -63,6 +63,17 @@ def _rt_rating(ratings: list[dict[str, Any]]) -> str | None:
     return None
 
 
+def _parse_rt_pct(value: str | None) -> int | None:
+    v = _na(value)
+    if v is None:
+        return None
+    v = v.rstrip("%").strip()
+    try:
+        return int(v)
+    except ValueError:
+        return None
+
+
 def _enrich(movie: PlexMovie, data: dict[str, Any]) -> None:
     now = datetime.now(UTC)
     movie.omdb_payload = data
@@ -71,7 +82,9 @@ def _enrich(movie: PlexMovie, data: dict[str, Any]) -> None:
     movie.omdb_awards = _na(data.get("Awards"))
     movie.omdb_metascore = _parse_int(data.get("Metascore"))
     movie.omdb_imdb_votes = _parse_int(data.get("imdbVotes"))
-    movie.omdb_rt_rating = _rt_rating(data.get("Ratings") or [])
+    rt = _rt_rating(data.get("Ratings") or [])
+    movie.omdb_rt_rating = rt
+    movie.omdb_rt_rating_raw = _parse_rt_pct(rt)
     movie.omdb_actors = _na(data.get("Actors"))
     movie.omdb_enriched_at = now
     movie.omdb_checked_at = now

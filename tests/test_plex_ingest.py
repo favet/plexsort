@@ -128,6 +128,15 @@ def test_sync_plex_movies_paginates_and_strips_file_paths(
     assert all("file" not in movie for movie in public_payload)
     assert "D:\\Movies" not in str(public_payload)
 
+    # Second sync should preserve OMDb enrichment on existing rows.
+    movies[0].omdb_metascore = 95
+    db_session.commit()
+
+    plex_ingest.sync_plex_movies(db_session, settings)
+    refreshed = list(db_session.scalars(select(PlexMovie).order_by(PlexMovie.title_sort)).all())
+    assert len(refreshed) == 2
+    assert refreshed[0].omdb_metascore == 95  # preserved across sync
+
 
 def test_movie_from_video_ignores_path_bearing_media_parts() -> None:
     video = xml(

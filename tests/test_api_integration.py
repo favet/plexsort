@@ -96,6 +96,7 @@ def seed_database(db: Session) -> None:
         omdb_box_office_raw=467231855,
         omdb_metascore=73,
         omdb_rt_rating="83%",
+        omdb_rt_rating_raw=83,
     )
     movie_two = PlexMovie(
         plex_rating_key="m2",
@@ -258,6 +259,9 @@ def test_public_api_uses_safe_response_shapes(client: TestClient) -> None:
     has_omdb_no = response_json(client.get("/api/movies?has_omdb=false"))
     assert has_omdb_no["total"] == 1
     assert has_omdb_no["items"][0]["title"] == "Arrival"
+
+    rt_sorted = response_json(client.get("/api/movies?sort=rt_rating&dir=desc"))
+    assert rt_sorted["items"][0]["title"] == "The Matrix"
 
 
 def test_movies_csv_export_supports_visible_and_full_enriched_columns(
