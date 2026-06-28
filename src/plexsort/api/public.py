@@ -238,6 +238,7 @@ def _filtered_movies(
     min_metascore: float | None = None,
     list_id: int | None = None,
     in_list: bool | None = None,
+    has_omdb: bool | None = None,
 ) -> Select[tuple[PlexMovie]]:
     statement = select(PlexMovie)
     if q:
@@ -268,6 +269,10 @@ def _filtered_movies(
         statement = statement.where(PlexMovie.view_count > 0)
     if watched is False:
         statement = statement.where(PlexMovie.view_count == 0)
+    if has_omdb is True:
+        statement = statement.where(PlexMovie.omdb_payload.is_not(None))
+    if has_omdb is False:
+        statement = statement.where(PlexMovie.omdb_payload.is_(None))
     if list_id is not None and in_list is not None:
         matched_ids = (
             select(Match.plex_movie_id)
@@ -341,6 +346,7 @@ def list_movies(
     q: str | None = None,
     list_id: int | None = None,
     in_list: bool | None = None,
+    has_omdb: bool | None = None,
 ) -> MoviePage:
     statement = _filtered_movies(
         q=q,
@@ -358,6 +364,7 @@ def list_movies(
         watched=watched,
         list_id=list_id,
         in_list=in_list,
+        has_omdb=has_omdb,
     )
     sort_column = SORT_COLUMNS.get(sort, PlexMovie.title_sort)
     statement = statement.order_by(sort_column.desc() if dir == "desc" else sort_column.asc())
@@ -552,6 +559,7 @@ def export_movies_csv(
     watched: bool | None = None,
     list_id: int | None = None,
     in_list: bool | None = None,
+    has_omdb: bool | None = None,
 ) -> StreamingResponse:
     """Current filtered view as a CSV — respects all active filters and sort order."""
     statement = _filtered_movies(
@@ -561,6 +569,7 @@ def export_movies_csv(
         min_imdb_rating=min_imdb_rating, min_metascore=min_metascore,
         watched=watched,
         list_id=list_id, in_list=in_list,
+        has_omdb=has_omdb,
     )
     sort_col = SORT_COLUMNS.get(sort, PlexMovie.title_sort)
     statement = statement.order_by(sort_col.desc() if dir == "desc" else sort_col.asc())

@@ -229,6 +229,7 @@ function inInput() {
 
 function filters() {
   const watched = document.querySelector("input[name='watched']:checked")?.value ?? "";
+  const has_omdb = document.querySelector("input[name='has_omdb']:checked")?.value ?? "";
   return {
     q: els.searchInput.value.trim(),
     year_min: els.yearMinInput.value,
@@ -242,6 +243,7 @@ function filters() {
     min_imdb_rating: els.minImdbInput.value,
     min_metascore: els.minMetascoreInput.value,
     watched,
+    has_omdb,
   };
 }
 
@@ -293,6 +295,7 @@ function pushUrlState() {
   if (f.min_imdb_rating) params.set("min_imdb_rating", f.min_imdb_rating);
   if (f.min_metascore) params.set("min_metascore", f.min_metascore);
   if (f.watched) params.set("watched", f.watched);
+  if (f.has_omdb) params.set("has_omdb", f.has_omdb);
   if (state.sort !== "title") params.set("sort", state.sort);
   if (state.dir !== "asc") params.set("dir", state.dir);
   if (state.page > 1) params.set("page", String(state.page));
@@ -318,6 +321,10 @@ function parseUrlState() {
   if (p.get("min_metascore")) els.minMetascoreInput.value = p.get("min_metascore");
   if (p.get("watched")) {
     const el = document.querySelector(`input[name='watched'][value='${p.get("watched")}']`);
+    if (el) el.checked = true;
+  }
+  if (p.get("has_omdb")) {
+    const el = document.querySelector(`input[name='has_omdb'][value='${p.get("has_omdb")}']`);
     if (el) el.checked = true;
   }
   if (p.get("sort")) state.sort = p.get("sort");
@@ -360,6 +367,7 @@ function clearFilter(name) {
     case "min_imdb_rating": els.minImdbInput.value = ""; break;
     case "min_metascore": els.minMetascoreInput.value = ""; break;
     case "watched": document.querySelector("input[name='watched'][value='']").checked = true; break;
+    case "has_omdb": document.querySelector("input[name='has_omdb'][value='']").checked = true; break;
   }
 }
 
@@ -381,6 +389,8 @@ function renderActiveFilters() {
   if (f.min_metascore) chips.push({ label: `Metascore >= ${f.min_metascore}`, key: "min_metascore" });
   if (f.watched === "true") chips.push({ label: "Watched", key: "watched" });
   if (f.watched === "false") chips.push({ label: "Unwatched", key: "watched" });
+  if (f.has_omdb === "true") chips.push({ label: "Has OMDb", key: "has_omdb" });
+  if (f.has_omdb === "false") chips.push({ label: "No OMDb data", key: "has_omdb" });
   if (state.listFilter && els.listSelect.value) {
     const listName = els.listSelect.options[els.listSelect.selectedIndex]?.text || "";
     const label = state.listFilter === "in_list" ? `In list: ${listName}` : `Not in list: ${listName}`;
@@ -830,6 +840,7 @@ function bindEvents() {
     .forEach((el) => el.addEventListener("input", debouncedRefresh));
 
   document.querySelectorAll("input[name='watched']").forEach((el) => el.addEventListener("change", debouncedRefresh));
+  document.querySelectorAll("input[name='has_omdb']").forEach((el) => el.addEventListener("change", debouncedRefresh));
 
   document.querySelectorAll("th button[data-sort]").forEach((btn) => {
     btn.addEventListener("click", () => {
@@ -965,6 +976,7 @@ function bindEvents() {
     els.minImdbInput.value = "";
     els.minMetascoreInput.value = "";
     document.querySelector("input[name='watched'][value='']").checked = true;
+    document.querySelector("input[name='has_omdb'][value='']").checked = true;
     state.page = 1;
     refreshMovies();
   });

@@ -641,20 +641,54 @@ Validation:
 - `node --check frontend\assets\app.js` passed.
 - `node --check frontend\assets\admin.js` passed.
 
+### 2026-06-28 - Mobile Card Polish, has_omdb Filter, and CSS Cleanup
+
+Phase 14/15/16 polish pass:
+
+- Committed and pushed the mobile card layout (meta chip pills) that was staged from the previous
+  session: year, IMDb, RT, resolution, and watched status render as pill chips on each card.
+- Removed dead CSS from the @media (≤680px) block: eliminated grid-column references that no
+  longer apply now that `tr` uses `display: block`, and removed redundant `display: none` rules
+  for cells already hidden by the `data-column` attribute selector.
+- Added `has_omdb` filter to `GET /api/movies` and `GET /api/export/movies-csv`:
+  - `has_omdb=true` returns only movies with a full OMDb payload (1,766 movies).
+  - `has_omdb=false` returns only movies without OMDb data (15 movies).
+- Added `OMDb data: Any / Yes / No` segmented control to the public filter sidebar.
+- Active filter chips now include "Has OMDb" and "No OMDb data".
+- URL state and clear-filters handler include `has_omdb`.
+- Added integration test coverage for both sides of `has_omdb`.
+
+Validation:
+
+- `python -m ruff check .` passed.
+- `python -m compileall src alembic tests` passed.
+- `python -m pytest` passed with 20 tests.
+- `python -m mypy --no-incremental --cache-dir .mypy_cache src/plexsort` passed with no issues.
+- `node --check frontend/assets/app.js` passed.
+- `node --check frontend/assets/admin.js` passed.
+- `docker compose build app` passed.
+- `docker compose up -d app` restarted the rebuilt app container.
+- Local `GET /health` returned `{"status":"ok"}`.
+- Local `GET /api/movies?has_omdb=false` returned 15 movies (expected — 15 have no IMDb IDs).
+- Static frontend assets copied to `C:\website\plexsort`.
+
 ## Known Gaps
 
-- No API integration tests exist yet.
 - Letterboxd scrape has not been tested against a real public list.
-- Plex library sync does not yet handle paginated library results robustly.
+- RT, box office, and runtime sorts require numeric extraction columns (deferred — would need a
+  migration to add `omdb_rt_pct` and `omdb_runtime_min` int columns).
+- Browser smoke test for the mobile card layout has not been verified visually (browser automation
+  remains unreliable).
+- 357-item match review queue (all `confidence=none`) is untouched — TMDB integration would
+  improve match quality once a TMDB API key is available.
 
 ## Next Checkpoint
 
-Recommended next checkpoint: harden matching quality and admin review ergonomics.
+Recommended: TMDB matching once a key is available, or Letterboxd list refresh (re-scrape).
 
-Exit criteria:
+Exit criteria for TMDB pass:
 
-- Improve match confidence quality beyond title/year matching, likely by adding TMDB ID support
-  once a TMDB API key is available.
-- Add safer bulk workflow controls for the review queue.
-- Add browser-level admin UI verification once browser automation is responsive.
-- Add browser-level public mobile UI verification once browser automation is responsive.
+- Add `TMDB_API_KEY` to `.env` and `config.py`.
+- Resolve TMDB IDs for lb_entries via their Letterboxd film URL → TMDB lookup.
+- Re-run matching pass; confident TMDB-ID matches should resolve most of the 357 unmatched entries.
+- Update match tests to cover TMDB-based confidence path.

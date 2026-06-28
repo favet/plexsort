@@ -1295,43 +1295,7 @@ progress {
     padding: 0;
   }
 
-  td:first-child {
-    grid-column: 1 / -1;
-  }
-
-  td[data-label] {
-    display: grid;
-    gap: 2px;
-    color: var(--text);
-    font-size: 0.9rem;
-  }
-
-  td[data-label]::before {
-    content: attr(data-label);
-    color: var(--muted);
-    font-size: 0.65rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-  }
-
   td[data-column]:not([data-column="title"]) {
-    display: none;
-  }
-
-  td[data-column="title"]::before {
-    display: none;
-  }
-
-  td[data-label="Genres"] {
-    grid-column: 1 / -1;
-  }
-
-  td[data-label="Rating"] {
-    display: none;
-  }
-
-  td[data-label="Ratings"] {
     display: none;
   }
 

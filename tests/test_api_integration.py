@@ -248,6 +248,14 @@ def test_public_api_uses_safe_response_shapes(client: TestClient) -> None:
 
     assert response_json(client.get("/api/movies?sort=imdb_rating&dir=desc"))["total"] == 2
 
+    has_omdb_yes = response_json(client.get("/api/movies?has_omdb=true"))
+    assert has_omdb_yes["total"] == 1
+    assert has_omdb_yes["items"][0]["title"] == "The Matrix"
+
+    has_omdb_no = response_json(client.get("/api/movies?has_omdb=false"))
+    assert has_omdb_no["total"] == 1
+    assert has_omdb_no["items"][0]["title"] == "Arrival"
+
 
 def test_movies_csv_export_supports_visible_and_full_enriched_columns(
     client: TestClient,

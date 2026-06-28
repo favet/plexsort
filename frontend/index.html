@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>PlexSort</title>
-    <link rel="stylesheet" href="assets/style.css?v=16" />
+    <link rel="stylesheet" href="assets/style.css?v=17" />
   </head>
   <body data-view="public">
     <header class="topbar">
@@ -100,6 +100,13 @@
               <label><input type="radio" name="watched" value="" checked /> Any</label>
               <label><input type="radio" name="watched" value="true" /> Yes</label>
               <label><input type="radio" name="watched" value="false" /> No</label>
+            </fieldset>
+
+            <fieldset class="segmented" aria-label="OMDb data">
+              <legend>OMDb data</legend>
+              <label><input type="radio" name="has_omdb" value="" checked /> Any</label>
+              <label><input type="radio" name="has_omdb" value="true" /> Yes</label>
+              <label><input type="radio" name="has_omdb" value="false" /> No</label>
             </fieldset>
           </div>
         </section>
@@ -223,6 +230,6 @@
     </div>
 
     <datalist id="genreOptions"></datalist>
-    <script src="assets/app.js?v=16"></script>
+    <script src="assets/app.js?v=17"></script>
   </body>
 </html>
